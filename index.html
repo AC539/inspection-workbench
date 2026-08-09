@@ -277,6 +277,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
     <div id="routeResult"></div>
     <div style="position:sticky;bottom:0;display:flex;gap:10px;align-items:center;background:var(--card);padding:10px 0 0;margin-top:12px">
       <button class="btn" style="flex:1" onclick="planSelectedRoute()" id="routePlanBtn">开始智能排序</button>
+      <button class="btn sec" onclick="exportSelectedExcel()">导出Excel</button>
       <button class="btn ghost" onclick="refreshRoute()">重置</button>
     </div>
   </div>
@@ -1052,6 +1053,24 @@ function updateRouteCount(){
   if(el) el.textContent=n?('已选 '+n+' 项'):'';
   var btn=document.getElementById('routePlanBtn');
   if(btn) btn.textContent=n?('开始智能排序（已选 '+n+'）'):'开始智能排序';
+}
+function exportSelectedExcel(){
+  var ids=Object.keys(STATE.routeSel);
+  if(!ids.length){ toast('请先勾选要导出的任务'); return; }
+  var trs=['<tr><th>项目名称</th><th>位置</th></tr>'];
+  ids.forEach(function(id){
+    var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+    var pos=t.address||(t.loc?t.loc.district:'')||'';
+    trs.push('<tr><td>'+esc(taskTitle(t))+'</td><td>'+esc(pos)+'</td></tr>');
+  });
+  var xls='\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>顺路任务</x:Name><x:WorksheetOptions/></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1">'+trs.join('')+'</table></body></html>';
+  var blob=new Blob([xls],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='顺路任务清单.xls';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },100);
+  toast('已导出 '+ids.length+' 条');
 }
 function planSelectedRoute(){
   try{
