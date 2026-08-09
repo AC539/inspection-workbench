@@ -1060,7 +1060,7 @@ function planSelectedRoute(){
     STATE.routeSorted={date:date,seq:seq};
     renderRouteResult(date,seq);
   }catch(e){
-    document.getElementById('routeResult').innerHTML='<div style="padding:14px 16px;background:#FFF0EF;border-radius:12px;font-size:13px;color:var(--red);margin-top:12px">排序出错：'+esc(e.message||e)+'</div>';
+    document.getElementById('routeResult').innerHTML='<div style="padding:14px 16px;background:#FFF0EF;border-radius:12px;font-size:13px;color:var(--red);margin-top:12px">排序出错：'+esc((e&&e.message)||e)+'<div style="font-size:11px;color:#999;margin-top:6px;word-break:break-all;line-height:1.5">'+esc((e&&e.stack)||'')+'</div></div>';
   }
 }
 function renderRouteResult(date,seq){
