@@ -348,7 +348,7 @@ var STATUS = {
   pending:'待安排', scheduled:'已排期', done:'检验完成',
   report_received:'报告·收到单子', report_review:'报告·校核中', report_archived:'报告·归档完成'
 };
-var STATE = {tasks:[], types:{}, cols:{}, set:{}, viewDate:null, selDate:null, batch:false, batchSel:{}, editingId:null, smsPreview:null, routePlan:null};
+var STATE = {tasks:[], types:{}, cols:{}, set:{}, viewDate:null, selDate:null, batch:false, batchSel:{}, editingId:null, smsPreview:null, routePlan:null, deletedIds:[]};
 
 function loadAll(){
   STATE.types = JSON.parse(localStorage.getItem(K.types)||'null') || Object.assign({}, DEFAULT_TYPES);
@@ -383,6 +383,20 @@ function uid(){return 't' + Date.now().toString(36) + Math.random().toString(36)
 /* ================= 多人同步（服务器模式） ================= */
 var SYNC = {url:'', version:0, timer:null, pulling:false, lastOk:0};
 function syncUrl(){ return (STATE.set&&STATE.set.syncUrl||'').replace(/\/+$/,''); }
+/* 字段级互补合并：同任务 id 时，较新的为主体，主体缺失的字段用较旧的补全 */
+function mergeTaskObj(a,b){
+  var newer=(b.updatedAt||0)>=(a.updatedAt||0)?b:a;
+  var older=newer===b?a:b;
+  var out={};
+  Object.keys(newer).forEach(function(k){ out[k]=newer[k]; });
+  Object.keys(older).forEach(function(k){
+    var v=older[k];
+    if(v==null||v===''||(Array.isArray(v)&&!v.length)) return;
+    var ov=out[k];
+    if(ov==null||ov===''||(Array.isArray(ov)&&!ov.length)) out[k]=v;
+  });
+  return out;
+}
 function syncHeaders(){
   var t=(STATE.set&&STATE.set.syncToken||'').trim();
   return t?{'X-Token':t}:{};
@@ -407,11 +421,11 @@ function syncPull(){
     if(d&&d.tasks){
       var merged=[];
       var byId={};
-      STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
+      STATE.tasks.forEach(function(t){ if(t.id&&STATE.deletedIds.indexOf(t.id)<0) byId[t.id]=t; });
       (d.tasks||[]).forEach(function(t){
-        if(!t.id) return;
+        if(!t.id||STATE.deletedIds.indexOf(t.id)>=0) return;
         if(byId[t.id]){
-          if((t.updatedAt||0)>=((byId[t.id].updatedAt||0))) byId[t.id]=t;
+          byId[t.id]=mergeTaskObj(byId[t.id],t);
         }else{ byId[t.id]=t; }
       });
       merged=Object.keys(byId).map(function(k){return byId[k];});
@@ -444,17 +458,19 @@ function syncPoll(){
 }
 function syncPush(){
   var u=syncUrl(); if(!u) return;
+  var deleted=STATE.deletedIds.slice();
   fetch(u+'/api/data',{
     method:'POST',
     headers:Object.assign({'Content-Type':'application/json'},syncHeaders()),
-    body:JSON.stringify({tasks:STATE.tasks,types:STATE.types,cols:STATE.cols,settings:STATE.set})
+    body:JSON.stringify({tasks:STATE.tasks,types:STATE.types,cols:STATE.cols,settings:STATE.set,deleted:deleted})
   }).then(function(r){return r.json();}).then(function(d){
     if(d&&d.version){
       SYNC.version=d.version;
       var byId={};
       STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
-      (d.tasks||[]).forEach(function(t){ if(t.id&&t.updatedAt>=(byId[t.id]?byId[t.id].updatedAt||0:0)) byId[t.id]=t; });
+      (d.tasks||[]).forEach(function(t){ if(t.id) byId[t.id]=byId[t.id]?mergeTaskObj(byId[t.id],t):t; });
       STATE.tasks=Object.keys(byId).map(function(k){return byId[k];});
+      if(deleted.length) STATE.deletedIds=STATE.deletedIds.filter(function(x){return deleted.indexOf(x)<0;});
       saveAllLocal();
       renderAll();
       syncStatus('<span style="color:var(--green)">已同步到服务器 · 版本 '+SYNC.version+'</span>',true);
@@ -1512,9 +1528,8 @@ function mergeIncoming(d){
   var add=0,upd=0;
   (d.tasks||[]).forEach(function(t){
     if(!t.id) return;
-    if(byId[t.id]){
-      if((t.updatedAt||0)>((byId[t.id].updatedAt)||0)){ byId[t.id]=t; upd++; }
-    }else{ byId[t.id]=t; add++; }
+    if(byId[t.id]){ byId[t.id]=mergeTaskObj(byId[t.id],t); upd++; }
+    else{ byId[t.id]=t; add++; }
   });
   STATE.tasks=Object.keys(byId).map(function(k){return byId[k];});
   if(d.types) STATE.types=Object.assign({},DEFAULT_TYPES,d.types);
@@ -1557,12 +1572,14 @@ function importJSON(input){
 }
 function confirmClearAll(){
   showConfirm('清空全部数据？','所有任务、类别与设置将被删除，此操作不可恢复。建议先导出备份！', function(){
+    STATE.tasks.forEach(function(t){ if(t.id) STATE.deletedIds.push(t.id); });
     STATE.tasks=[]; saveAll(); renderAll();
     toast('已清空全部数据');
   });
 }
 function confirmClearSeed(){
   showConfirm('清空示例数据？','将删除所有任务（含示例与真实数据）。若只想移除示例，请手动删除示例任务。', function(){
+    STATE.tasks.forEach(function(t){ if(t.id) STATE.deletedIds.push(t.id); });
     STATE.tasks=[]; saveAll(); renderAll();
     toast('已清空数据');
   });
@@ -1570,6 +1587,7 @@ function confirmClearSeed(){
 function confirmDelTask(id){
   var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
   showConfirm('删除任务？','「'+taskTitle(t)+'」将被删除，此操作不可恢复。', function(){
+    STATE.deletedIds.push(id);
     STATE.tasks=STATE.tasks.filter(function(x){return x.id!==id;});
     saveAll(); renderAll(); closeSheet();
     toast('已删除');
