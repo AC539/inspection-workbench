@@ -346,6 +346,10 @@ function loadAll(){
   STATE.cols = JSON.parse(localStorage.getItem(K.cols)||'null') || Object.assign({}, DEFAULT_COLS);
   STATE.set = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(K.set)||'{}'));
   STATE.tasks = JSON.parse(localStorage.getItem(K.tasks)||'[]');
+  // 数据修正：非待安排但没有排期日期的任务，自动归类回待安排
+  STATE.tasks.forEach(function(t){
+    if(t.status!=='pending'&&!t.date) t.status='pending';
+  });
   if(!localStorage.getItem(K.seeded)){
     seedDemo();
     localStorage.setItem(K.seeded,'1');
@@ -738,7 +742,8 @@ function openTask(id){
   }
   html+='<div class="form-actions">'
     +'<button class="btn" onclick="openTaskForm(\''+t.id+'\')">编辑任务</button>'
-    +(t.date&&!isFinished(t)?'<button class="btn warn" onclick="postponeTask(\''+t.id+'\')">延期</button>':'')
+    +(t.date?'<button class="btn warn" onclick="cancelSchedule(\''+t.id+'\')">取消安排</button>':'')
+    +(t.date&&!isFinished(t)?'<button class="btn ghost" onclick="postponeTask(\''+t.id+'\')">延期</button>':'')
     +'<button class="btn danger" onclick="confirmDelTask(\''+t.id+'\')">删除</button>'
     +'</div>';
   openSheet(taskTitle(t), html);
@@ -874,6 +879,14 @@ function postponeTask(id){
     t.date=''; t.time=''; t.endDate=''; t.status='pending';
     saveAll(); renderAll(); closeSheet();
     toast('已延期，回到待安排');
+  });
+}
+function cancelSchedule(id){
+  var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+  showConfirm('取消安排？','「'+taskTitle(t)+'」将回到待安排，排期日期与时间会被清空。', function(){
+    t.status='pending'; t.date=''; t.time=''; t.endDate='';
+    saveAll(); renderAll(); closeSheet();
+    toast('已取消安排，回到待安排');
   });
 }
 
