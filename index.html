@@ -1093,7 +1093,8 @@ function planSelectedRouteOnline(date,sel){
       round++;
       res.innerHTML='<div class="empty">正在计算真实车程…<br><span style="font-size:11px">第 '+round+' 轮 · 剩余 '+remain.length+' 个任务</span></div>';
       if(!remain.length){ finish(); return; }
-      var jobs=remain.map(function(t){
+      var cands=remain.slice().sort(function(a,b){ return driveMin(cur,locs[a.id]||a.loc)-driveMin(cur,locs[b.id]||b.loc); }).slice(0,6);
+      var jobs=cands.map(function(t){
         var loc=locs[t.id]||t.loc;
         return amapDrive(cur,loc).then(function(min){ return {t:t,min:min}; }).catch(function(e){ errs.push((t.title||'?').slice(0,12)+'：'+(e&&e.message||e)); return null; });
       });
@@ -1124,7 +1125,10 @@ function renderRouteResult(date,seq,online,errs){
     +'<div style="font-size:15px;font-weight:600;margin-bottom:6px">推荐路线（贪心最近原则 · 不走回头路）</div>'
     +'<div style="font-size:12px;color:'+(online?'var(--green)':'var(--hint)')+';margin-bottom:10px">车程计算：'+(online?'高德实时路况（联网）':'离线估算（未启用高德或请求失败）')+'</div>';
   if(errs&&errs.length){
-    html+='<div style="font-size:12px;color:var(--orange);margin-bottom:10px;background:#FFF8E6;padding:8px 10px;border-radius:8px;line-height:1.6">⚠️ 高德部分请求未成功（'+errs.length+' 项），已用离线估算补齐：<br>'+errs.slice(0,3).map(esc).join('<br>')+'</div>';
+    var over=errs.some(function(e){return /OVER_LIMIT|超限|QUOTA/i.test(String(e));});
+    html+='<div style="font-size:12px;color:var(--orange);margin-bottom:10px;background:#FFF8E6;padding:8px 10px;border-radius:8px;line-height:1.6">'
+      +(over?'⚠️ 今日高德免费额度已用完（接口超限），以下任务车程已用离线估算补齐；额度每天约 1000 次，明天自动恢复。<br>':'⚠️ 高德部分请求未成功（'+errs.length+' 项），已用离线估算补齐：<br>')
+      +errs.slice(0,3).map(esc).join('<br>')+'</div>';
   }
   if(!seq.length){
     html+='<div class="empty">没有可排序的任务</div>';
