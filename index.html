@@ -1452,7 +1452,7 @@ function generateCode(){
     var ta=document.getElementById('txCode');
     ta.value=code;
     copyText(code);
-    toast('代码已生成并复制，到另一台设备粘贴导入');
+    toast('代码已生成并复制（'+Math.round(code.length/1024)+' KB），到另一台设备完整粘贴导入');
   }catch(e){
     toast('生成失败：'+e.message);
   }
@@ -1492,10 +1492,17 @@ function encodeData(){
   return 'JYCODE1:'+btoa(unescape(encodeURIComponent(s)));
 }
 function decodeData(code){
-  var m=code.match(/^JYCODE1:([\s\S]+)$/);
-  if(!m) throw new Error('代码格式不正确');
-  var s=decodeURIComponent(escape(atob(m[1].trim())));
-  var d=JSON.parse(s);
+  var c=String(code||'').trim();
+  var m=c.match(/^JYCODE1:([\s\S]+)$/);
+  if(!m) throw new Error('代码格式不正确：请确认复制完整（以 JYCODE1: 开头，包含全部内容）。若是微信粘贴可能被截断或带了多余内容，建议直接全选复制');
+  var raw=m[1].trim();
+  if(!raw) throw new Error('代码内容为空');
+  var s;
+  try{ s=decodeURIComponent(escape(atob(raw))); }
+  catch(e){ throw new Error('代码不完整或已损坏（复制时被截断），请重新完整复制'); }
+  var d;
+  try{ d=JSON.parse(s); }
+  catch(e){ throw new Error('代码内容解析失败（可能复制不完整），请重新完整复制'); }
   if(!d||!Array.isArray(d.tasks)) throw new Error('代码内容无效');
   return d;
 }
