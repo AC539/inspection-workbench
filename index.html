@@ -356,7 +356,13 @@ function loadAll(){
   }
 }
 function saveAll(){
-  STATE.tasks.forEach(function(t){ if(!t.updatedAt) t.updatedAt=Date.now(); });
+  STATE.tasks.forEach(function(t){
+    if(!t.updatedAt) t.updatedAt=Date.now();
+    // 阶段统一规则：安排了排期时间的任务，阶段必须是「已排期」（完成态任务不受影响）
+    if(t.date&&t.status==='pending') t.status='scheduled';
+    // 没有排期时间的非待安排任务，自动回到待安排
+    if(t.status!=='pending'&&!t.date) t.status='pending';
+  });
   localStorage.setItem(K.tasks, JSON.stringify(STATE.tasks));
   localStorage.setItem(K.types, JSON.stringify(STATE.types));
   localStorage.setItem(K.cols, JSON.stringify(STATE.cols));
