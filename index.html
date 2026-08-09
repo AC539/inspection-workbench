@@ -1071,22 +1071,27 @@ function planSelectedRouteOffline(date,sel){
 }
 function planSelectedRouteOnline(date,sel){
   var res=document.getElementById('routeResult');
-  res.innerHTML='<div class="empty">正在获取高德真实路况与最优路线，请稍候…</div>';
   var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
   var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
+  var located=sel.filter(function(t){return t.loc;});
+  var unloc=sel.filter(function(t){return !t.loc;});
+  var total=located.length;
+  res.innerHTML='<div class="empty">正在获取高德真实路况…<br><span style="font-size:11px">解析坐标 0/'+total+'</span></div>';
   var locs={};
   var errs=[];
-  var geos=sel.map(function(t){
-    if(!t.loc) return Promise.resolve(null);
+  var done=0;
+  var geos=located.map(function(t){
     return amapGeocode(t.address||t.loc.district)
-      .then(function(loc){ locs[t.id]=loc; })
-      .catch(function(e){ locs[t.id]=null; errs.push((t.title||'?').slice(0,12)+'：'+(e&&e.message||e)); });
+      .then(function(loc){ locs[t.id]=loc; done++; res.innerHTML='<div class="empty">正在获取高德真实路况…<br><span style="font-size:11px">解析坐标 '+done+'/'+total+'</span></div>'; })
+      .catch(function(e){ locs[t.id]=null; errs.push((t.title||'?').slice(0,12)+'：'+(e&&e.message||e)); done++; });
   });
   Promise.all(geos).then(function(){
-    var remain=sel.filter(function(t){return t.loc;}).slice();
-    var unloc=sel.filter(function(t){return !t.loc;});
+    var remain=located.slice();
     var seq=[];
+    var round=0;
     function step(cur){
+      round++;
+      res.innerHTML='<div class="empty">正在计算真实车程…<br><span style="font-size:11px">第 '+round+' 轮 · 剩余 '+remain.length+' 个任务</span></div>';
       if(!remain.length){ finish(); return; }
       var jobs=remain.map(function(t){
         var loc=locs[t.id]||t.loc;
@@ -1165,16 +1170,26 @@ function jsonp(url,timeout){
     var s=document.createElement('script');
     window[cb]=function(data){ cleanup(); resolve(data); };
     function cleanup(){ delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); clearTimeout(timer); }
-    var timer=setTimeout(function(){ cleanup(); reject(new Error('请求超时')); }, timeout||8000);
+    var timer=setTimeout(function(){ cleanup(); reject(new Error('请求超时')); }, timeout||6000);
     s.onerror=function(){ cleanup(); reject(new Error('网络错误')); };
     s.src=full;
     document.head.appendChild(s);
   });
 }
+function amapGet(url){
+  var ctrl=null;
+  try{ if(window.AbortController) ctrl=new AbortController(); }catch(e){}
+  var timer=setTimeout(function(){ if(ctrl) ctrl.abort(); }, 6000);
+  var doFetch=fetch(url, ctrl?{signal:ctrl.signal}:{})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(d){ clearTimeout(timer); return d; })
+    .catch(function(e){ clearTimeout(timer); throw new Error(e&&e.name==='AbortError'?'请求超时':'网络错误'); });
+  return doFetch.catch(function(){ return jsonp(url,6000); });
+}
 function amapGeocode(address){
   var c=geoCache();
   if(c[address]) return Promise.resolve(c[address]);
-  return jsonp('https://restapi.amap.com/v3/geocode/geo?address='+encodeURIComponent(address)+'&city='+encodeURIComponent('成都')+'&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
+  return amapGet('https://restapi.amap.com/v3/geocode/geo?address='+encodeURIComponent(address)+'&city='+encodeURIComponent('成都')+'&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
     if(d.status==='1'&&d.geocodes&&d.geocodes.length){
       var g=d.geocodes[0].location.split(',');
       var loc={lng:+g[0],lat:+g[1],district:d.geocodes[0].district||''};
@@ -1188,7 +1203,7 @@ function amapDrive(from,to){
   var key=from.lng+','+from.lat+'|'+to.lng+','+to.lat;
   var c=driveCache();
   if(c[key]) return Promise.resolve(c[key]);
-  return jsonp('https://restapi.amap.com/v3/direction/driving?origin='+from.lng+','+from.lat+'&destination='+to.lng+','+to.lat+'&strategy=10&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
+  return amapGet('https://restapi.amap.com/v3/direction/driving?origin='+from.lng+','+from.lat+'&destination='+to.lng+','+to.lat+'&strategy=10&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
     if(d.status==='1'&&d.route&&d.route.paths&&d.route.paths.length){
       var min=Math.max(1,Math.round(d.route.paths[0].duration/60));
       c[key]=min; saveDriveCache(c);
