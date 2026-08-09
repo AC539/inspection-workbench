@@ -1057,17 +1057,21 @@ function updateRouteCount(){
 function exportSelectedExcel(){
   var ids=Object.keys(STATE.routeSel);
   if(!ids.length){ toast('请先勾选要导出的任务'); return; }
-  var trs=['<tr><th>项目名称</th><th>位置</th></tr>'];
+  function escCsv(s){
+    s=String(s==null?'':s);
+    if(/[",\n\r]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+    return s;
+  }
+  var rows=[['项目名称','位置']];
   ids.forEach(function(id){
     var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
-    var pos=t.address||(t.loc?t.loc.district:'')||'';
-    trs.push('<tr><td>'+esc(taskTitle(t))+'</td><td>'+esc(pos)+'</td></tr>');
+    rows.push([taskTitle(t), t.address||(t.loc?t.loc.district:'')||'']);
   });
-  var xls='\ufeff<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>顺路任务</x:Name><x:WorksheetOptions/></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table border="1">'+trs.join('')+'</table></body></html>';
-  var blob=new Blob([xls],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var csv='\ufeff'+rows.map(function(r){ return r.map(escCsv).join(','); }).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='顺路任务清单.xls';
+  a.download='顺路任务清单.csv';
   document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },100);
   toast('已导出 '+ids.length+' 条');
