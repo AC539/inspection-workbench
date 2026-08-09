@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>检验工作台</title>
+<style>
+:root{
+  --bg:#F5F5F7; --card:#FFFFFF; --line:rgba(0,0,0,.08); --line2:rgba(0,0,0,.14);
+  --txt:#1D1D1F; --sub:#6E6E73; --hint:#AEAEB2; --acc:#007AFF; --accSoft:#E8F1FE;
+  --red:#FF3B30; --green:#34C759; --orange:#FF9500; --teal:#00BFA5; --purple:#AF52DE; --gray:#8E8E93;
+  --amber:#FF9F0A; --r:14px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue","Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom)}
+input,select,textarea,button{font-family:var(--font);font-size:16px}
+button{cursor:pointer;border:none;background:none;color:inherit}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:var(--acc);transition:background .15s}
+.icon-btn:hover{background:var(--accSoft)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;font-size:15px;font-weight:500;background:var(--acc);color:#fff;transition:opacity .15s;white-space:nowrap}
+.btn:active{opacity:.8}
+.btn.ghost{background:var(--card);color:var(--acc);border:1px solid var(--line2)}
+.btn.sec{background:var(--accSoft);color:var(--acc)}
+.btn.danger{background:var(--red)}
+.btn.warn{background:var(--amber);color:#fff}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:10px}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(248,248,250,.6);backdrop-filter:blur(26px) saturate(1.6);-webkit-backdrop-filter:blur(26px) saturate(1.6);border-bottom:1px solid rgba(0,0,0,.06)}
+.topbar-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:6px 16px}
+.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;letter-spacing:.3px;margin-right:auto}
+.logo .badge{width:32px;height:32px;border-radius:9px;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.layout{max-width:1200px;margin:0 auto;padding:16px 16px 32px;display:flex;gap:16px;align-items:flex-start}
+.cal-wrap{flex:1;min-width:0}
+.cal-wrap.hide{display:none}
+.side{width:330px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+.side.hide{display:none}
+.batch-view{width:100%;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.sec-title{font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-nav .month{font-size:19px;font-weight:600}
+.cal-nav .nav-btns{display:flex;gap:4px;align-items:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:4px;height:calc(100vh - 180px);min-height:480px}
+.cal-dow{text-align:center;font-size:10px;color:var(--sub);padding:2px 0;font-weight:500}
+.cal-cell{min-width:0;min-height:0;width:100%;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:2px 3px;cursor:pointer;overflow:hidden;position:relative}
+.cal-cell:hover{border-color:var(--line2)}
+.cal-cell.blank{background:transparent;border-color:transparent;pointer-events:none}
+.cal-cell.other{opacity:.4}
+.cal-cell.today{outline:2px solid var(--acc);outline-offset:-1px}
+.cal-cell.weekend{background:#FBFBFE}
+.cal-num{font-size:15px;color:var(--sub);font-weight:500;margin-bottom:2px;line-height:1.1}
+.cal-cell.weekend .cal-num{color:#FF9500}
+.cal-cell.today .cal-num{color:var(--acc);font-weight:700}
+.cal-tasks{display:flex;flex-direction:column;gap:1px;min-width:0;width:100%}
+.cal-task{position:relative;display:block;width:100%;max-width:100%;min-width:0;font-size:10px;line-height:1.35;padding:1px 5px;border-radius:5px;color:inherit;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;box-sizing:border-box;backdrop-filter:blur(12px) saturate(1.6);-webkit-backdrop-filter:blur(12px) saturate(1.6);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35),inset 0 1px 2px rgba(255,255,255,.18)}
+.cal-task::before{content:'';position:absolute;left:2px;right:2px;top:1px;height:30%;border-radius:4px;background:linear-gradient(180deg,rgba(255,255,255,.38),transparent);pointer-events:none}
+.cal-task::after{content:'';position:absolute;left:0;right:0;bottom:0;height:26%;border-radius:inherit;background:linear-gradient(0deg,rgba(255,255,255,.14),transparent);pointer-events:none}
+.cal-task:hover{filter:brightness(1.08)}
+.ktag{font-size:8px;background:var(--card);color:inherit;border-radius:2px;padding:0 2px;margin-right:2px;vertical-align:1px;opacity:.85}
+.cal-more{position:absolute;right:2px;bottom:2px;background:#FF3B30;color:#fff;border-radius:999px;padding:1px 5px;font-size:9px;line-height:1;font-weight:600;letter-spacing:.2px}
+.today-box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:0 16px 0;max-width:1200px;margin-left:auto;margin-right:auto}
+@media(max-width:1200px){.today-box{margin-left:16px;margin-right:16px}}
+.today-box .sec-title{margin-bottom:4px}
+.today-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.today-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fff}
+.today-item.overdue{border-color:#FFD0CE;background:#FFF5F5}
+.today-item .t-tag{flex-shrink:0;font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px}
+.today-item .t-main{flex:1;min-width:0}
+.today-item .t-title{font-size:14px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.today-item .t-sub{font-size:12px;color:var(--sub)}
+.empty{padding:22px 0;text-align:center;color:var(--hint);font-size:13px}
+/* 侧栏 */
+.side-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.side-actions{display:flex;flex-direction:column;gap:8px}
+.task-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;transition:border-color .15s}
+.task-item:hover{border-color:var(--line2)}
+.task-item .stripe{width:4px;align-self:stretch;border-radius:2px;flex-shrink:0}
+.task-item .t-main{flex:1;min-width:0}
+.task-item .t-title{font-size:14px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.task-item .t-sub{font-size:12px;color:var(--sub);margin-top:1px}
+.task-item .t-sub .sep{color:var(--hint);margin:0 4px}
+.chk{width:22px;height:22px;border-radius:7px;border:2px solid var(--line2);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff}
+.chk.on{background:var(--acc);border-color:var(--acc)}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--bg);border-radius:12px;padding:10px 12px}
+.stat .n{font-size:20px;font-weight:600}
+.stat .l{font-size:11px;color:var(--sub);margin-top:2px}
+.group-title{font-size:12px;color:var(--sub);font-weight:600;margin:14px 0 6px;display:flex;align-items:center;gap:6px}
+/* 弹层 */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.mask.show{display:flex;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:88vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .25s cubic-bezier(.2,.8,.3,1)}
+@media(min-width:769px){.mask{align-items:center}.sheet{border-radius:22px;max-height:86vh}}
+@keyframes up{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card);border-radius:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0;flex-shrink:0}
+.sheet-head .st{font-size:17px;font-weight:600;flex:1;min-width:0}
+.sheet-body{padding:18px;overflow-y:auto;overscroll-behavior:contain}
+.frow{margin-bottom:14px}
+.frow label{display:block;font-size:12px;font-weight:600;color:var(--sub);margin-bottom:5px}
+.frow input[type=text],.frow input[type=number],.frow input[type=date],.frow input[type=time],.frow input[type=tel],.frow select,.frow textarea{width:100%;min-height:46px;border:1px solid var(--line2);border-radius:12px;padding:10px 12px;background:var(--card);color:var(--txt);outline:none;transition:border-color .15s}
+.frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--acc)}
+.frow textarea{min-height:80px;resize:vertical}
+.frow .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.frow .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.frow .hint{font-size:12px;color:var(--hint);margin-top:4px}
+.form-actions{display:flex;gap:10px;margin-top:18px}
+.form-actions .btn{flex:1}
+.dtl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px}
+.dtl-item{background:var(--bg);border-radius:12px;padding:10px 12px}
+.dtl-item .k{font-size:11px;color:var(--sub);margin-bottom:2px}
+.dtl-item .v{font-size:14px;font-weight:500;word-break:break-all}
+.dtl-item .v.gray{color:var(--hint);font-weight:400}
+.tag{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;margin:0 4px 4px 0}
+.pstripe{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.pstripe .bar{width:4px;height:14px;border-radius:2px}
+/* 日列表 */
+.day-list{display:flex;flex-direction:column;gap:8px}
+.day-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.day-time{flex-shrink:0;width:52px;text-align:center;padding-top:2px}
+.day-time .hm{font-size:15px;font-weight:600}
+.day-time .ampm{font-size:11px;color:var(--hint)}
+.day-main{flex:1;min-width:0}
+.day-main .tt{font-size:14px;font-weight:500;color:var(--tc)}
+.day-main .ts{font-size:12px;color:var(--sub);margin-top:2px}
+/* 短信解析预览 */
+.sms-text{width:100%;min-height:120px;border:1px solid var(--line2);border-radius:12px;padding:12px;background:var(--card);resize:vertical;outline:none;font-size:15px}
+.sms-text:focus{border-color:var(--acc)}
+.preview-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px;background:var(--card)}
+.preview-card .pv-title{font-size:15px;font-weight:600;margin-bottom:10px}
+/* 编排结果 */
+.route-step{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+.route-step:last-child{border-bottom:none}
+.route-step .idx{width:26px;height:26px;border-radius:50%;background:var(--accSoft);color:var(--acc);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.route-step .rt{flex:1}
+.route-step .rt .a{font-size:14px;font-weight:500}
+.route-step .rt .b{font-size:12px;color:var(--sub)}
+.route-step .tm{font-size:13px;font-weight:600;color:var(--acc);flex-shrink:0;padding-top:4px}
+/* 底部导航 */
+.bottab{position:fixed;left:0;right:0;bottom:0;z-index:90;display:none;background:rgba(250,250,252,.6);backdrop-filter:blur(28px) saturate(1.7);-webkit-backdrop-filter:blur(28px) saturate(1.7);border-top:1px solid rgba(0,0,0,.07);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.bottab .bt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:50px;color:var(--hint);font-size:10px}
+.bottab .bt.on{color:var(--acc)}
+.alertbar{background:#FFF8E6;border:1px solid #F5D28A;color:#7A5B12;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.alertbar.red{background:#FFF0EF;border-color:#FFC9C6;color:#8A1F1A}
+.set-group{margin-bottom:22px}
+.set-group h4{font-size:13px;font-weight:600;color:var(--sub);margin-bottom:10px}
+.color-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.color-row:last-child{border-bottom:none}
+.color-row .nm{flex:1;font-size:14px}
+.color-row input[type=color]{width:38px;height:34px;border:none;border-radius:8px;background:none;padding:0;cursor:pointer}
+.color-row .del{width:36px;height:36px;color:var(--hint);border-radius:8px}
+.color-row .del:hover{color:var(--red);background:#FFF0EF}
+.type-add{display:flex;gap:8px;margin-top:10px}
+.type-add input{flex:1;min-height:44px;border:1px solid var(--line2);border-radius:10px;padding:0 12px;outline:none}
+.type-add input:focus{border-color:var(--acc)}
+.fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:80;width:56px;height:56px;border-radius:50%;background:var(--acc);color:#fff;display:none;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,122,255,.35)}
+@media(max-width:768px){
+  .layout{padding:12px 12px 90px;flex-direction:column}
+  .side{width:100%;display:none}
+  .side.show{display:flex}
+  .cal-wrap.hide{display:none}
+  .bottab{display:flex}
+  .cal-grid{height:calc(100vh - 235px);min-height:360px;gap:3px}
+  .cal-cell{padding:2px 3px}
+  .cal-task{font-size:8px;line-height:1.2;padding:0 3px;text-overflow:clip;min-width:0}
+  .cal-task .ktag{display:none}
+  .cal-num{font-size:14px}
+  .cal-dow{font-size:9px}
+  .fab{display:flex}
+  .today-box{margin-left:12px;margin-right:12px}
+  .topbar-in{padding:4px 10px}
+  .logo{font-size:15px}
+  .frow .row2,.frow .row3{grid-template-columns:1fr 1fr}
+  .frow .row3{grid-template-columns:1fr}
+  .dtl-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:400px){
+  .frow .row2{grid-template-columns:1fr}
+}
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(29,29,31,.92);color:#fff;font-size:14px;padding:10px 20px;border-radius:999px;z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;max-width:86vw;text-align:center}
+.toast.show{opacity:1}
+.confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:150;display:none;align-items:center;justify-content:center;padding:24px}
+.confirm-mask.show{display:flex}
+.confirm-box{background:var(--card);border-radius:20px;padding:22px;max-width:360px;width:100%;text-align:center}
+.confirm-box .ct{font-size:16px;font-weight:600;margin-bottom:8px}
+.confirm-box .cd{font-size:14px;color:var(--sub);margin-bottom:18px;line-height:1.6}
+.confirm-box .cb{display:flex;gap:10px}
+.confirm-box .cb .btn{flex:1}
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="logo">
+      <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></div>
+      检验工作台
+    </div>
+    <button class="icon-btn" title="导出备份" onclick="exportJSON()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+    <button class="icon-btn" title="导入恢复" onclick="document.getElementById('impFile').click()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L8 7m4-4l4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+    <button class="icon-btn" title="设置" onclick="openSettings()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56h.08a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
+    <input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(this)">
+  </div>
+</header>
+
+<!-- 数据量提醒 -->
+<div class="today-box" id="alertBoxWrap" style="display:none"></div>
+
+<!-- 主布局 -->
+<div class="layout">
+  <div class="cal-wrap" id="calWrap">
+    <div class="section">
+      <div class="cal-nav">
+        <button class="icon-btn" onclick="shiftMonth(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="month" id="monthLabel">2026年8月</div>
+        <div class="nav-btns">
+          <button class="btn ghost sm" onclick="goToday()">今天</button>
+          <button class="icon-btn" onclick="shiftMonth(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </div>
+
+  <!-- 右侧栏 -->
+  <aside class="side" id="sidePanel">
+    <div class="side-card">
+      <div class="sec-title"><span>待安排任务</span><span style="font-size:12px;color:var(--hint);font-weight:400" id="pendCount"></span></div>
+      <div class="side-actions">
+        <button class="btn" onclick="openSmsImport()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>报检短信导入</button>
+        <button class="btn sec" onclick="showRouteView()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h6a4 4 0 0 0 0-8H10a4 4 0 0 1 0-8h6"/></svg>顺路编排</button>
+        <button class="btn ghost" onclick="showBatchView()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>批量改阶段</button>
+      </div>
+      <div id="pendList" style="margin-top:4px"></div>
+    </div>
+    <div class="side-card">
+      <div class="sec-title">阶段分布</div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+    <div class="side-card">
+      <div class="sec-title">自定义说明</div>
+      <div style="font-size:13px;color:var(--sub);line-height:1.8">
+        任务块左侧色条 = 报告阶段；标题字体颜色 = 设备类别。<br>
+        颜色均可到设置中自定义。
+      </div>
+    </div>
+  </aside>
+
+  <!-- 批量阶段独立界面 -->
+  <div class="batch-view" id="batchView" style="display:none">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
+      <button class="icon-btn" onclick="closeBatchView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span style="font-size:17px;font-weight:600">批量更改阶段</span>
+      <span style="font-size:12px;color:var(--hint);margin-left:auto" id="batchCount"></span>
+    </div>
+    <div id="batchBody"></div>
+    <div style="position:sticky;bottom:0;display:flex;gap:10px;align-items:center;background:var(--card);padding:10px 0 0;margin-top:6px">
+      <select id="bs_stage" style="flex:1;min-height:46px;border:1px solid var(--line2);border-radius:12px;padding:0 12px;background:var(--card);font-size:15px"></select>
+      <button class="btn" onclick="applyBatchView()" id="bs_apply">应用</button>
+    </div>
+  </div>
+
+  <!-- 顺路编排独立界面 -->
+  <div class="batch-view" id="routeView" style="display:none">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+      <button class="icon-btn" onclick="closeRouteView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <span style="font-size:17px;font-weight:600">顺路编排</span>
+      <span style="font-size:12px;color:var(--hint);margin-left:auto" id="routeCount"></span>
+    </div>
+    <div id="routeBody"></div>
+    <div id="routeResult"></div>
+    <div style="position:sticky;bottom:0;display:flex;gap:10px;align-items:center;background:var(--card);padding:10px 0 0;margin-top:12px">
+      <button class="btn" style="flex:1" onclick="planSelectedRoute()" id="routePlanBtn">开始智能排序</button>
+      <button class="btn ghost" onclick="refreshRoute()">重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 浮动添加按钮 -->
+<button class="fab" onclick="openTaskForm()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<!-- 底部导航 -->
+<nav class="bottab">
+  <button class="bt on" id="tabCal" onclick="switchTab('cal')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>日历</button>
+  <button class="bt" id="tabTask" onclick="switchTab('task')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>待安排</button>
+  <button class="bt" id="tabBatch" onclick="switchTab('batch')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 13v8M13 17h8"/></svg>批量阶段</button>
+</nav>
+
+<!-- 通用弹层 -->
+<div class="mask" id="mask">
+  <div class="sheet">
+    <div class="sheet-head">
+      <span class="st" id="sheetTitle"></span>
+      <button class="icon-btn" onclick="closeSheet()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<!-- 二次确认 -->
+<div class="confirm-mask" id="confirmMask">
+  <div class="confirm-box">
+    <div class="ct" id="cfTitle"></div>
+    <div class="cd" id="cfDesc"></div>
+    <div class="cb">
+      <button class="btn ghost" onclick="closeConfirm()">取消</button>
+      <button class="btn danger" id="cfOk" onclick="cfAction()">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 存储层 ================= */
+var P = 'wb_check_';
+var K = {tasks:P+'tasks', types:P+'deviceTypes', cols:P+'statusColors', set:P+'settings', seeded:P+'seeded'};
+var DEFAULT_TYPES = {
+  '电梯定期检验':'#007AFF',
+  '电梯监督检验':'#5AC8FA',
+  '叉车定期检验':'#FF9500',
+  '起重机定期检验':'#AF52DE'
+};
+var DEFAULT_COLS = {
+  pending:'#8E8E93', scheduled:'#007AFF', done:'#34C759',
+  report_received:'#00BFA5', report_review:'#FF9F0A', report_archived:'#AF52DE'
+};
+var DEFAULT_SETTINGS = {
+  startDistrict:'青羊区', speedKmh:25, taskMinutes:90, startTime:'09:00',
+  useMap:false, mapKey:'', syncUrl:'', syncToken:''
+};
+var STATUS = {
+  pending:'待安排', scheduled:'已排期', done:'检验完成',
+  report_received:'报告·收到单子', report_review:'报告·校核中', report_archived:'报告·归档完成'
+};
+var STATE = {tasks:[], types:{}, cols:{}, set:{}, viewDate:null, selDate:null, batch:false, batchSel:{}, editingId:null, smsPreview:null, routePlan:null};
+
+function loadAll(){
+  STATE.types = JSON.parse(localStorage.getItem(K.types)||'null') || Object.assign({}, DEFAULT_TYPES);
+  STATE.cols = JSON.parse(localStorage.getItem(K.cols)||'null') || Object.assign({}, DEFAULT_COLS);
+  STATE.set = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(K.set)||'{}'));
+  STATE.tasks = JSON.parse(localStorage.getItem(K.tasks)||'[]');
+  if(!localStorage.getItem(K.seeded)){
+    seedDemo();
+    localStorage.setItem(K.seeded,'1');
+  }
+}
+function saveAll(){
+  STATE.tasks.forEach(function(t){ if(!t.updatedAt) t.updatedAt=Date.now(); });
+  localStorage.setItem(K.tasks, JSON.stringify(STATE.tasks));
+  localStorage.setItem(K.types, JSON.stringify(STATE.types));
+  localStorage.setItem(K.cols, JSON.stringify(STATE.cols));
+  localStorage.setItem(K.set, JSON.stringify(STATE.set));
+  syncPush();
+}
+function uid(){return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);}
+
+/* ================= 多人同步（服务器模式） ================= */
+var SYNC = {url:'', version:0, timer:null, pulling:false, lastOk:0};
+function syncUrl(){ return (STATE.set&&STATE.set.syncUrl||'').replace(/\/+$/,''); }
+function syncHeaders(){
+  var t=(STATE.set&&STATE.set.syncToken||'').trim();
+  return t?{'X-Token':t}:{};
+}
+function syncStatus(msg,ok){
+  var el=document.getElementById('syncStatus');
+  if(el) el.innerHTML=msg;
+  if(ok) SYNC.lastOk=Date.now();
+}
+function syncStart(){
+  if(SYNC.timer){ clearInterval(SYNC.timer); SYNC.timer=null; }
+  var u=syncUrl();
+  if(!u){ syncStatus('未启用多人同步',false); return; }
+  SYNC.url=u;
+  syncPull();
+  SYNC.timer=setInterval(syncPoll,5000);
+}
+function syncPull(){
+  var u=syncUrl(); if(!u||SYNC.pulling) return;
+  SYNC.pulling=true;
+  fetch(u+'/api/data',{headers:syncHeaders()}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.tasks){
+      var merged=[];
+      var byId={};
+      STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
+      (d.tasks||[]).forEach(function(t){
+        if(!t.id) return;
+        if(byId[t.id]){
+          if((t.updatedAt||0)>=((byId[t.id].updatedAt||0))) byId[t.id]=t;
+        }else{ byId[t.id]=t; }
+      });
+      merged=Object.keys(byId).map(function(k){return byId[k];});
+      STATE.tasks=merged;
+      if(d.types) STATE.types=Object.assign({},DEFAULT_TYPES,d.types);
+      if(d.cols) STATE.cols=Object.assign({},DEFAULT_COLS,d.cols);
+      if(d.settings) STATE.set=Object.assign({},DEFAULT_SETTINGS,STATE.set,d.settings);
+      SYNC.version=d.version||0;
+      saveAllLocal();
+      renderAll();
+      syncStatus('<span style="color:var(--green)">已连接服务器 · 共 '+merged.length+' 条任务 · 版本 '+SYNC.version+'</span>',true);
+    }else{
+      syncStatus('<span style="color:var(--red)">连接失败：服务器返回异常</span>',false);
+    }
+  }).catch(function(){
+    syncStatus('<span style="color:var(--red)">未连接服务器（检查地址/网络）</span>',false);
+  }).then(function(){ SYNC.pulling=false; });
+}
+function saveAllLocal(){
+  localStorage.setItem(K.tasks, JSON.stringify(STATE.tasks));
+  localStorage.setItem(K.types, JSON.stringify(STATE.types));
+  localStorage.setItem(K.cols, JSON.stringify(STATE.cols));
+  localStorage.setItem(K.set, JSON.stringify(STATE.set));
+}
+function syncPoll(){
+  var u=syncUrl(); if(!u||SYNC.pulling) return;
+  fetch(u+'/api/poll',{headers:syncHeaders()}).then(function(r){return r.json();}).then(function(d){
+    if(d.version!==SYNC.version) syncPull();
+  }).catch(function(){});
+}
+function syncPush(){
+  var u=syncUrl(); if(!u) return;
+  fetch(u+'/api/data',{
+    method:'POST',
+    headers:Object.assign({'Content-Type':'application/json'},syncHeaders()),
+    body:JSON.stringify({tasks:STATE.tasks,types:STATE.types,cols:STATE.cols,settings:STATE.set})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.version){
+      SYNC.version=d.version;
+      var byId={};
+      STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
+      (d.tasks||[]).forEach(function(t){ if(t.id&&t.updatedAt>=(byId[t.id]?byId[t.id].updatedAt||0:0)) byId[t.id]=t; });
+      STATE.tasks=Object.keys(byId).map(function(k){return byId[k];});
+      saveAllLocal();
+      renderAll();
+      syncStatus('<span style="color:var(--green)">已同步到服务器 · 版本 '+SYNC.version+'</span>',true);
+    }
+  }).catch(function(){ syncStatus('<span style="color:var(--red)">同步失败（离线或服务器不可达）</span>',false); });
+}
+
+/* ================= 工具 ================= */
+function pad(n){return n<10?'0'+n:''+n;}
+function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function todayStr(){var d=new Date();return fmtDate(d);}
+function parseDate(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+function addDays(s,n){var d=parseDate(s);d.setDate(d.getDate()+n);return fmtDate(d);}
+function weekCN(s){return ['周日','周一','周二','周三','周四','周五','周六'][parseDate(s).getDay()];}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('show');},2200);}
+function addMinutes(timeStr,min){var p=(timeStr||'09:00').split(':');var d=new Date(2020,0,1,+p[0],+p[1]+min);return pad(d.getHours())+':'+pad(d.getMinutes());}
+function isDone(t){return t.status==='done'||t.status==='report_received'||t.status==='report_review'||t.status==='report_archived';}
+function isFinished(t){return isDone(t);}
+function taskTitle(t){
+  var title=t.title||'未命名任务';
+  var dt=t.deviceType?(' · '+t.deviceType):'';
+  var cnt=t.count&&t.count>0?'（'+(t.count>1?t.count+'台':'1台')+'）':'';
+  var pos=t.postponeCount>0?'【延期×'+t.postponeCount+'】':'';
+  return title+dt+cnt+pos;
+}
+function typeColor(type){return STATE.types[type]||'#1D1D1F';}
+function statusColor(st){return STATE.cols[st]||'#8E8E93';}
+function hexA(hex,a){
+  var h=String(hex||'').replace('#','');
+  if(h.length===3) h=h.split('').map(function(c){return c+c;}).join('');
+  if(h.length!==6) return 'rgba(0,0,0,'+a+')';
+  var n=parseInt(h,16);
+  return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+function fgOn(hex){
+  var h=String(hex||'').replace('#','');
+  if(h.length===3) h=h.split('').map(function(c){return c+c;}).join('');
+  if(h.length!==6) return '#FFFFFF';
+  var n=parseInt(h,16);
+  var r=(n>>16)/255, g=((n>>8)&255)/255, b=(n&255)/255;
+  var lin=0.299*r+0.587*g+0.114*b;
+  return lin>0.65?'#1D1D1F':'#FFFFFF';
+}
+
+/* ================= 成都区县定位 ================= */
+var DISTRICTS = {
+  '锦江区':{lat:30.657,lng:104.083},'青羊区':{lat:30.674,lng:104.062},
+  '金牛区':{lat:30.691,lng:104.051},'武侯区':{lat:30.642,lng:104.043},
+  '成华区':{lat:30.660,lng:104.101},'高新区':{lat:30.573,lng:104.066},
+  '天府新区':{lat:30.508,lng:104.066},'龙泉驿区':{lat:30.556,lng:104.274},
+  '青白江区':{lat:30.878,lng:104.251},'新都区':{lat:30.823,lng:104.158},
+  '温江区':{lat:30.681,lng:103.856},'双流区':{lat:30.574,lng:103.923},
+  '郫都区':{lat:30.809,lng:103.887},'新津区':{lat:30.410,lng:103.811},
+  '简阳市':{lat:30.411,lng:104.547},'都江堰市':{lat:31.001,lng:103.647},
+  '彭州市':{lat:30.990,lng:103.958},'邛崃市':{lat:30.414,lng:103.464},
+  '崇州市':{lat:30.630,lng:103.673},'金堂县':{lat:30.862,lng:104.412},
+  '大邑县':{lat:30.588,lng:103.511},'蒲江县':{lat:30.197,lng:103.506}
+};
+function resolveLoc(address){
+  if(!address) return null;
+  var keys=Object.keys(DISTRICTS);
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    if(address.indexOf(k)>=0){
+      var c=DISTRICTS[k];
+      return {lat:c.lat,lng:c.lng,district:k};
+    }
+  }
+  return null;
+}
+function haversine(lat1,lng1,lat2,lng2){
+  var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function driveMin(a,b){
+  if(!a||!b) return 99;
+  if(a.district&&a.district===b.district){
+    return Math.max(3, Math.round(3/(STATE.set.speedKmh/60)));
+  }
+  var km=haversine(a.lat,a.lng,b.lat,b.lng)*1.4;
+  return Math.round(km/(STATE.set.speedKmh/60));
+}
+
+/* ================= 报检短信解析 ================= */
+function extractCompany(t){
+  var m=t.match(/来自\s*([\s\S]*?)(?:申报|的)/);
+  if(!m) return '';
+  var s=m[1].trim();
+  var m2=s.match(/^([\u4e00-\u9fa5A-Za-z0-9（）()]+?(?:公司|集团|厂|中心|站|部|院|所|学校))/);
+  if(m2) return m2[1];
+  return s.split(/\s+/)[0]||'';
+}
+function parseSms(text){
+  var t=text||'', r={company:'',reportNo:'',count:1,address:'',contact:'',phone:'',nextDate:'',deviceType:'',inspectType:'定期检验',projectName:'',maintCo:''};
+  var m;
+  r.company=extractCompany(t);
+  m=t.match(/报检单号(?:为)?\s*([A-Za-z0-9]+)/); if(m) r.reportNo=m[1];
+  m=t.match(/报检设备数量\s*(\d+)\s*台/); if(m) r.count=+m[1];
+  m=t.match(/项目地址(?:为)?[:：]?\s*([^\s，。,；;]+)/); if(m) r.address=m[1];
+  m=t.match(/申请联系人员?为?\s*([\u4e00-\u9fa5]{2,4})/); if(m) r.contact=m[1];
+  m=t.match(/下次检验日期\s*[（(]?\s*(\d{4}-\d{2}-\d{2})/); if(m) r.nextDate=m[1];
+  m=t.match(/[（(](电梯|叉车|起重机|场[厂（(]?车|锅炉|压力容器|机械式停车设备)[)）]/); var dev=m?m[1]:'';
+  m=t.match(/(安装监督检验|监督检验|定期检验|委托检验)/); if(m) r.inspectType=m[1];
+  if(dev){
+    r.deviceType=dev+r.inspectType;
+  }
+  return r;
+}
+/* 综合检验系统「键值对」格式解析（复制自系统页面） */
+function fieldValue(t,key){
+  var re=new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[:：]\\s*\\n?\\s*([^\\n\\t]+)');
+  var m=t.match(re);
+  return m?m[1].trim():'';
+}
+function parseFormData(text){
+  var t=text||'', r={company:'',reportNo:'',count:'',address:'',contact:'',phone:'',nextDate:'',deviceType:'',inspectType:'',projectName:'',maintCo:''};
+  r.reportNo=fieldValue(t,'报检单号');
+  var dev=fieldValue(t,'设备类型');
+  r.inspectType=fieldValue(t,'检验类型')||'定期检验';
+  r.company=fieldValue(t,'使用单位');
+  r.projectName=fieldValue(t,'项目名称');
+  r.maintCo=fieldValue(t,'维保单位');
+  r.address=fieldValue(t,'设备所在地址');
+  r.contact=fieldValue(t,'检验现场联系人');
+  r.phone=fieldValue(t,'检验现场联系电话');
+  if(dev) r.deviceType=dev+r.inspectType;
+  return r;
+}
+function detectForm(text){
+  return /报检单号\s*[:：]/.test(text)&&/使用单位\s*[:：]/.test(text);
+}
+
+/* ================= 示例数据 ================= */
+function seedDemo(){
+  var today=todayStr();
+  var tasks=[
+    {id:uid(),title:'翡翠城物业服务中心',deviceType:'电梯定期检验',reportNo:'CDTJ2026071001',count:2,address:'锦江区琉璃路翡翠城3栋',contact:'刘师傅',phone:'13800001111',nextDate:addDays(today,90),productType:'耗能电梯',time125:'',date:addDays(today,-1),time:'09:00',note:'逾期未检，物业催得急',status:'scheduled',postponeCount:0,postponedDates:[],loc:resolveLoc('锦江区琉璃路翡翠城3栋')},
+    {id:uid(),title:'四川超越顶峰建筑工程有限公司',deviceType:'电梯定期检验',reportNo:'CDTJ2026012456',count:1,address:'青羊区斜阳路7号1栋1单元',contact:'杨喜刚',phone:'',nextDate:'2026-04-25',productType:'超15年电梯',time125:'',date:addDays(today,2),endDate:addDays(today,4),time:'10:00',note:'报检短信导入示例，跨天任务演示（8月'+parseInt(addDays(today,2).slice(8,10),10)+'日~'+parseInt(addDays(today,4).slice(8,10),10)+'日）',status:'scheduled',postponeCount:0,postponedDates:[],loc:resolveLoc('青羊区斜阳路7号1栋1单元')},
+    {id:uid(),title:'天府建工集团项目二部',deviceType:'起重机定期检验',reportNo:'CDTJ2026071308',count:1,address:'金牛区一环路北三段16号',contact:'陈工',phone:'13700003333',nextDate:addDays(today,60),productType:'',time125:'',date:'',time:'',endDate:'',note:'顺路编排示例任务',status:'pending',postponeCount:0,postponedDates:[],loc:resolveLoc('金牛区一环路北三段16号')},
+    {id:uid(),title:'蓉达物流园',deviceType:'叉车定期检验',reportNo:'CDTJ2026071203',count:3,address:'金牛区蓉北商贸大道88号',contact:'王站长',phone:'13900002222',nextDate:addDays(today,120),productType:'',time125:'',date:'',time:'',endDate:'',note:'',status:'pending',postponeCount:0,postponedDates:[],loc:resolveLoc('金牛区蓉北商贸大道88号')},
+    {id:uid(),title:'川西机械厂',deviceType:'叉车定期检验',reportNo:'CDTJ2026071507',count:2,address:'工业大道12号',contact:'张厂长',phone:'13500005555',nextDate:addDays(today,90),productType:'',time125:'',date:'',time:'',endDate:'',note:'地址缺区名，演示无法定位分组',status:'pending',postponeCount:0,postponedDates:[],loc:null},
+    {id:uid(),title:'春熙路银座大厦',deviceType:'电梯定期检验',reportNo:'CDTJ2026062899',count:1,address:'锦江区春熙路银座大厦',contact:'李经理',phone:'13600004444',nextDate:addDays(today,30),productType:'蓄能电梯',time125:'',date:addDays(today,-3),time:'14:00',endDate:'',note:'现场已检完，等报告归档',status:'report_review',postponeCount:0,postponedDates:[],loc:resolveLoc('锦江区春熙路银座大厦')}
+  ];
+  STATE.tasks=tasks;
+  saveAll();
+}
+
+/* ================= 渲染 ================= */
+function renderAll(){
+  document.getElementById('monthLabel').textContent = STATE.viewDate.getFullYear()+'年'+(STATE.viewDate.getMonth()+1)+'月';
+  renderAlert();
+  renderCalendar();
+  renderSide();
+  renderStats();
+}
+function renderAlert(){
+  var wrap=document.getElementById('alertBoxWrap');
+  if(STATE.tasks.length>=30){
+    wrap.style.display='block';
+    wrap.innerHTML='<div class="alertbar">数据已积累 '+STATE.tasks.length+' 条，建议导出备份，防止浏览器缓存被清理。</div>';
+  }else{
+    wrap.style.display='none';
+  }
+}
+function renderCalendar(){
+  var grid=document.getElementById('calGrid');
+  var y=STATE.viewDate.getFullYear(),mo=STATE.viewDate.getMonth();
+  var first=new Date(y,mo,1);
+  var dim=new Date(y,mo+1,0).getDate();
+  var prevDim=new Date(y,mo,0).getDate();
+  var isMobile=window.matchMedia&&window.matchMedia('(max-width:768px)').matches;
+  function calLabel(t){
+    var s=taskTitle(t);
+    if(isMobile) return Array.from(s).slice(0,4).join('')+'..';
+    return s;
+  }
+  var byDate={};
+  STATE.tasks.forEach(function(t){
+    if(!t.date) return;
+    var ed=t.endDate||t.date;
+    var dd=parseDate(t.date), de=parseDate(ed);
+    var days=Math.min(Math.round((de-dd)/86400000)+1, 31);
+    for(var k=0;k<days;k++){
+      var ds=fmtDate(new Date(dd.getFullYear(),dd.getMonth(),dd.getDate()+k));
+      (byDate[ds]=byDate[ds]||[]).push(t);
+    }
+  });
+  var today=todayStr();
+  var html='';
+  ['日','一','二','三','四','五','六'].forEach(function(w){ html+='<div class="cal-dow">'+w+'</div>'; });
+  var cells=[];
+  var leadAll=first.getDay();
+  var leadShow=Math.min(leadAll,3);
+  for(var i=0;i<leadAll-leadShow;i++) cells.push({d:0,other:true,blank:true,date:null});
+  for(var i=leadShow-1;i>=0;i--) cells.push({d:prevDim-i,other:true,date:null});
+  for(var d=1;d<=dim;d++){ var ds=y+'-'+pad(mo+1)+'-'+pad(d); cells.push({d:d,other:false,date:ds}); }
+  cells.forEach(function(c){
+    if(c.blank){ html+='<div class="cal-cell blank"></div>'; return; }
+    var dow=(c.date?parseDate(c.date).getDay():0);
+    var cls='cal-cell'+(c.other?' other':'')+(c.date===today?' today':'')+(dow===0||dow===6?' weekend':'');
+    var tasksHtml='';
+    if(c.date&&byDate[c.date]){
+      var list=byDate[c.date].slice().sort(function(a,b){return (a.time||'99:99').localeCompare(b.time||'99:99');});
+      var maxShow=10;
+      list.slice(0,maxShow).forEach(function(t){
+        var tag=(t.endDate&&t.endDate!==t.date)?'<span class="ktag">跨</span>':'';
+        var sc=statusColor(t.status);
+        var fg=fgOn(sc);
+        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openTask(\''+t.id+'\')">'+tag+esc(calLabel(t))+'</div>';
+      });
+      if(list.length>maxShow) tasksHtml+='<div class="cal-more">+'+(list.length-maxShow)+'</div>';
+    }
+    html+='<div class="'+cls+'" onclick="openDay(\''+(c.date||'')+'\')">'
+      +'<div class="cal-num">'+c.d+'</div>'
+      +'<div class="cal-tasks">'+tasksHtml+'</div></div>';
+  });
+  grid.innerHTML=html;
+}
+function renderSide(){
+  var pend=STATE.tasks.filter(function(t){return t.status==='pending';});
+  var located=pend.filter(function(t){return t.loc;});
+  var unlocated=pend.filter(function(t){return !t.loc;});
+  document.getElementById('pendCount').textContent=pend.length+' 条待安排';
+  var html='';
+  if(!pend.length) html+='<div class="empty">没有待安排任务</div>';
+  located.forEach(function(t){ html+=taskItemHtml(t); });
+  if(unlocated.length){
+    html+='<div class="group-title">无法确定位置</div>';
+    unlocated.forEach(function(t){ html+=taskItemHtml(t); });
+  }
+  document.getElementById('pendList').innerHTML=html;
+}
+function taskItemHtml(t){
+  return '<div class="task-item" onclick="openTask(\''+t.id+'\')">'
+    +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
+    +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
+    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span>'+esc(t.reportNo||'无单号')+'</div></div></div>';
+}
+function renderStats(){
+  var g=document.getElementById('statsGrid');
+  var html='';
+  Object.keys(STATUS).forEach(function(k){
+    var n=STATE.tasks.filter(function(t){return t.status===k;}).length;
+    html+='<div class="stat"><div class="n" style="color:'+statusColor(k)+'">'+n+'</div><div class="l">'+STATUS[k]+'</div></div>';
+  });
+  g.innerHTML=html;
+}
+
+/* ================= 日期详情 ================= */
+function openDay(dateStr){
+  if(!dateStr) return;
+  STATE.selDate=dateStr;
+  var list=STATE.tasks.filter(function(t){ return t.date && t.date<=dateStr && (t.endDate||t.date)>=dateStr; });
+  list.sort(function(a,b){return (a.time||'99:99').localeCompare(b.time||'99:99');});
+  var html='';
+  if(!list.length) html='<div class="empty">这一天还没有安排任务</div>';
+  list.forEach(function(t){
+    var isMid=t.endDate&&t.endDate>dateStr;
+    html+='<div class="day-item" onclick="openTask(\''+t.id+'\')">'
+      +'<div class="day-time"><div class="hm">'+(t.time||'--:--')+'</div></div>'
+      +'<div class="day-main"><div class="tt" style="color:'+typeColor(t.deviceType)+'">'+(isMid?'<span class="tag" style="background:var(--accSoft);color:var(--acc)">跨天·'+t.date.slice(5)+'~'+t.endDate.slice(5)+'</span>':'')+esc(taskTitle(t))+'</div>'
+      +'<div class="ts">'+esc(t.address||'')+'<span class="sep" style="margin:0 4px">·</span>'+STATUS[t.status]+'</div></div>'
+      +'<div class="stripe" style="width:4px;align-self:stretch;background:'+statusColor(t.status)+';border-radius:2px"></div>'
+      +'</div>';
+  });
+  openSheet(dateStr+' '+weekCN(dateStr)+' · '+list.length+' 项', html
+    +'<div style="display:flex;gap:10px;margin-top:16px">'
+    +'<button class="btn" style="flex:1" onclick="openTaskForm(\''+dateStr+'\')">在此天添加任务</button>'
+    +'<button class="btn ghost" style="flex:1" onclick="showRouteView(\''+dateStr+'\')">顺路编排到此天</button>'
+    +'</div>');
+}
+
+/* ================= 任务详情/编辑 ================= */
+function openTask(id){
+  var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+  STATE.editingId=id;
+  var cols=Object.keys(STATE.cols);
+  var html='<div class="dtl-grid">'
+    +'<div class="dtl-item"><div class="k">报检单号</div><div class="v">'+esc(t.reportNo||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">设备类别</div><div class="v" style="color:'+typeColor(t.deviceType)+'">'+esc(t.deviceType||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">报检数量</div><div class="v">'+esc(t.count||'1')+' 台</div></div>'
+    +(t.projectName?'<div class="dtl-item"><div class="k">项目名称</div><div class="v">'+esc(t.projectName)+'</div></div>':'')
+    +(t.maintCo?'<div class="dtl-item"><div class="k">维保单位</div><div class="v">'+esc(t.maintCo)+'</div></div>':'')
+    +'<div class="dtl-item"><div class="k">联系人</div><div class="v">'+esc(t.contact||'—')+(t.phone?'<div style="font-size:12px;color:var(--sub);font-weight:400">'+esc(t.phone)+'</div>':'')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">项目地址</div><div class="v">'+esc(t.address||'—')+(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+'</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位</div>')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">下次检验日期</div><div class="v">'+esc(t.nextCheckDate||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">产品类型</div><div class="v">'+esc(t.productType||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">125时间</div><div class="v">'+esc(t.time125||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">排期日期</div><div class="v">'+(t.date?(t.endDate&&t.endDate!==t.date?esc(t.date)+' – '+esc(t.endDate)+'（跨天）':esc(t.date)+' '+weekCN(t.date)):'<span style="color:var(--hint)">待安排</span>')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">具体时间</div><div class="v">'+(t.time?esc(t.time):'—')+'</div></div>'
+    +'</div>';
+  html+='<div class="pstripe"><span class="bar" style="background:'+statusColor(t.status)+'"></span><span style="font-size:13px;font-weight:500;color:'+statusColor(t.status)+'">'+STATUS[t.status]+'</span><span style="font-size:12px;color:var(--hint)">（色条=阶段，字色=设备类别）</span></div>';
+  if(t.note) html+='<div style="background:var(--bg);border-radius:12px;padding:12px;font-size:13px;color:var(--sub);margin-bottom:12px"><b style="color:var(--txt)">备注</b><br>'+esc(t.note)+'</div>';
+  if(t.postponedDates&&t.postponedDates.length){
+    html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
+  }
+  html+='<div class="form-actions">'
+    +'<button class="btn" onclick="openTaskForm(\''+t.id+'\')">编辑任务</button>'
+    +(t.date&&!isFinished(t)?'<button class="btn warn" onclick="postponeTask(\''+t.id+'\')">延期</button>':'')
+    +'<button class="btn danger" onclick="confirmDelTask(\''+t.id+'\')">删除</button>'
+    +'</div>';
+  openSheet(taskTitle(t), html);
+}
+function openTaskForm(idOrDate){
+  var t=null, preDate='';
+  if(idOrDate&&idOrDate.indexOf('t')===0){
+    t=STATE.tasks.find(function(x){return x.id===idOrDate;});
+    STATE.editingId=t.id;
+    preDate=t.date||'';
+  }else{
+    STATE.editingId=null;
+    preDate=idOrDate||'';
+  }
+  var typeOptions='';
+  Object.keys(STATE.types).forEach(function(k){
+    typeOptions+='<option value="'+esc(k)+'"'+(t&&t.deviceType===k?' selected':'')+'>'+esc(k)+'</option>';
+  });
+  typeOptions+='<option value="__new">+ 新建类别…</option>';
+  var prodOptions=['蓄能电梯','耗能电梯','超15年电梯','机械式停车设备','其他'].map(function(p){
+    return '<option value="'+esc(p)+'"'+(t&&t.productType===p?' selected':'')+'>'+esc(p)+'</option>';
+  }).join('');
+  var statusOptions='';
+  Object.keys(STATUS).forEach(function(k){
+    statusOptions+='<option value="'+k+'"'+(t&&t.status===k?' selected':'')+'>'+STATUS[k]+'</option>';
+  });
+  var html='<div class="frow"><label>任务标题（使用单位）</label><input type="text" id="f_title" value="'+esc(t?t.title:'')+'" placeholder="如：四川超越顶峰建筑工程有限公司"></div>'
+    +'<div class="frow row2"><div><label>设备类别</label><select id="f_type" onchange="typeSelChange()">'+typeOptions+'</select></div>'
+    +'<div id="f_newtypeWrap" style="display:none"><label>新类别名称</label><input type="text" id="f_newtype" placeholder="如：观光车定期检验"></div></div>'
+    +'<div class="frow row2"><div><label>排期日期</label><input type="date" id="f_date" value="'+esc(preDate)+'"></div>'
+    +'<div><label>具体时间</label><input type="time" id="f_time" value="'+esc(t?t.time||'09:00':'09:00')+'"></div></div>'
+    +'<div class="frow"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0">时间跨度</label><span style="font-size:12px;color:var(--hint)" id="rangeHint">单日任务</span></div>'
+    +'<button type="button" class="btn sec sm" style="width:100%" onclick="toggleRange()" id="rangeBtn">设为跨天任务</button>'
+    +'<div id="rangeEndWrap" style="display:none;margin-top:8px"><label>结束日期（跨天时填写）</label><input type="date" id="f_endDate" value=""></div></div>'
+    +'<div class="frow row2"><div><label>报检单号</label><input type="text" id="f_reportNo" value="'+esc(t?t.reportNo:'')+'"></div>'
+    +'<div><label>报检数量（台）</label><input type="number" id="f_count" value="'+(t?t.count||1:1)+'" min="1"></div></div>'
+    +'<div class="frow row2"><div><label>项目名称</label><input type="text" id="f_project" value="'+esc(t?t.projectName:'')+'"></div>'
+    +'<div><label>维保单位</label><input type="text" id="f_maint" value="'+esc(t?t.maintCo:'')+'"></div></div>'
+    +'<div class="frow"><label>项目地址</label><input type="text" id="f_address" value="'+esc(t?t.address:'')+'" placeholder="含区名可自动定位，如：青羊区斜阳路7号">'
+    +'<div class="hint" id="f_locHint"></div></div>'
+    +'<div class="frow row2"><div><label>联系人</label><input type="text" id="f_contact" value="'+esc(t?t.contact:'')+'"></div>'
+    +'<div><label>联系电话</label><input type="tel" id="f_phone" value="'+esc(t?t.phone:'')+'"></div></div>'
+    +'<div class="frow row3"><div><label>产品类型</label><select id="f_product"><option value="">不适用</option>'+prodOptions+'</select></div>'
+    +'<div><label>125时间</label><input type="text" id="f_time125" value="'+esc(t?t.time125:'')+'" placeholder="如：2026-08-12 14:30"></div>'
+    +'<div><label>下次检验日期</label><input type="date" id="f_next" value="'+esc(t?t.nextCheckDate||'':'')+'"></div></div>'
+    +'<div class="frow"><label>备注</label><textarea id="f_note" placeholder="延期记录、现场情况等都会记在这里">'+esc(t?t.note:'')+'</textarea></div>'
+    +'<div class="frow"><label>当前阶段</label><select id="f_status">'+statusOptions+'</select></div>'
+    +'<div class="form-actions">'
+    +'<button class="btn" onclick="saveTask()">保存</button>'
+    +'<button class="btn ghost" onclick="closeSheet()">取消</button>'
+    +'</div>';
+  openSheet(t?'编辑任务':'添加任务', html);
+  if(t&&t.address){ document.getElementById('f_locHint').textContent = t.loc?('已定位：'+t.loc.district):'无法定位（将归入无法确定位置）'; }
+  if(t&&t.endDate){
+    document.getElementById('rangeEndWrap').style.display='block';
+    document.getElementById('rangeBtn').textContent='收起（单日）';
+    document.getElementById('rangeHint').textContent='跨天任务';
+    document.getElementById('f_endDate').value=t.endDate;
+  }
+}
+function toggleRange(){
+  var w=document.getElementById('rangeEndWrap');
+  var on=w.style.display==='none';
+  w.style.display=on?'block':'none';
+  document.getElementById('rangeBtn').textContent=on?'收起（单日）':'设为跨天任务';
+  document.getElementById('rangeHint').textContent=on?'跨天任务：需填结束日期':'单日任务';
+}
+function typeSelChange(){
+  var v=document.getElementById('f_type').value;
+  document.getElementById('f_newtypeWrap').style.display = (v==='__new')?'block':'none';
+}
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='f_address'){
+    var loc=resolveLoc(e.target.value);
+    var h=document.getElementById('f_locHint');
+    if(h) h.textContent = loc?('将定位到：'+loc.district):'无法定位（将归入无法确定位置）';
+  }
+});
+function saveTask(){
+  var title=document.getElementById('f_title').value.trim();
+  if(!title){ toast('请填写任务标题'); return; }
+  var type=document.getElementById('f_type').value;
+  if(type==='__new'){
+    var nn=document.getElementById('f_newtype').value.trim();
+    if(!nn){ toast('请填写新类别名称'); return; }
+    type=nn;
+    if(!STATE.types[type]){ STATE.types[type]=pickColor(); }
+  }
+  var d={
+    title:title, deviceType:type,
+    date:document.getElementById('f_date').value||'',
+    time:document.getElementById('f_time').value||'',
+    endDate:document.getElementById('f_endDate')?document.getElementById('f_endDate').value:'',
+    reportNo:document.getElementById('f_reportNo').value.trim(),
+    count:+document.getElementById('f_count').value||1,
+    projectName:document.getElementById('f_project')?document.getElementById('f_project').value.trim():'',
+    maintCo:document.getElementById('f_maint')?document.getElementById('f_maint').value.trim():'',
+    address:document.getElementById('f_address').value.trim(),
+    contact:document.getElementById('f_contact').value.trim(),
+    phone:document.getElementById('f_phone').value.trim(),
+    productType:document.getElementById('f_product').value,
+    time125:document.getElementById('f_time125').value.trim(),
+    nextCheckDate:document.getElementById('f_next').value,
+    note:document.getElementById('f_note').value.trim(),
+    status:document.getElementById('f_status').value
+  };
+  if(d.endDate && d.date && d.endDate<d.date){ toast('结束日期不能早于开始日期'); return; }
+  d.loc=resolveLoc(d.address);
+  if(STATE.editingId){
+    var t=STATE.tasks.find(function(x){return x.id===STATE.editingId;});
+    Object.keys(d).forEach(function(k){ t[k]=d[k]; });
+    toast('已保存');
+  }else{
+    d.id=uid(); d.postponeCount=0; d.postponedDates=[];
+    STATE.tasks.push(d);
+    toast('已添加任务');
+  }
+  saveAll(); renderAll(); closeSheet();
+}
+function pickColor(){
+  var palette=['#FF3B30','#FF9500','#FFCC00','#34C759','#00BFA5','#5AC8FA','#007AFF','#5856D6','#AF52DE','#FF2D55'];
+  var used=Object.keys(STATE.types).map(function(k){return STATE.types[k];});
+  for(var i=0;i<palette.length;i++){ if(used.indexOf(palette[i])<0) return palette[i]; }
+  return '#5856D6';
+}
+
+/* ================= 延期 ================= */
+function postponeTask(id){
+  var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+  showConfirm('确认延期该任务？','原定 '+(t.endDate&&t.endDate!==t.date?t.date+' ~ '+t.endDate:t.date)+' '+t.time+' 将取消，任务回到待安排，标题标记【延期】。', function(){
+    t.postponedDates.push((t.endDate&&t.endDate!==t.date?t.date+'~'+t.endDate:t.date)+' '+t.time+' → 延期');
+    t.postponeCount=(t.postponeCount||0)+1;
+    t.date=''; t.time=''; t.endDate=''; t.status='pending';
+    saveAll(); renderAll(); closeSheet();
+    toast('已延期，回到待安排');
+  });
+}
+
+/* ================= 批量阶段 ================= */
+function stageOptions(){
+  return Object.keys(STATUS).map(function(k){return '<option value="'+k+'">'+STATUS[k]+'</option>';}).join('');
+}
+function showBatchView(){
+  STATE.batch=true; STATE.batchSel={};
+  document.getElementById('calWrap').classList.add('hide');
+  document.getElementById('sidePanel').classList.remove('show');
+  document.getElementById('sidePanel').classList.add('hide');
+  document.getElementById('batchView').style.display='block';
+  var tb=document.getElementById('tabBatch'); if(tb) tb.classList.add('on');
+  renderBatchView();
+}
+function closeBatchView(){
+  STATE.batch=false; STATE.batchSel={};
+  switchTab('cal');
+  renderSide();
+}
+function renderBatchView(){
+  var html='<div class="frow row2"><div><label>开始日期</label><input type="date" id="bs_from"></div>'
+    +'<div><label>结束日期</label><input type="date" id="bs_to"></div></div>'
+    +'<div class="frow"><label>按名称搜索（使用单位 / 报检单号）</label>'
+    +'<div style="display:flex;gap:8px"><input type="text" id="bs_q" placeholder="输入关键词，如：电梯 或 CDTJ2026" style="flex:1">'
+    +'<button class="btn sm" style="min-height:46px" onclick="renderBatchList()">搜索</button></div>'
+    +'<div class="hint">时间段与名称可组合筛选；留空则显示全部任务（含待安排）。</div></div>'
+    +'<div id="bsList" style="margin-top:6px"></div>';
+  document.getElementById('batchBody').innerHTML=html;
+  document.getElementById('bs_stage').innerHTML=stageOptions();
+  renderBatchList();
+}
+function renderBatchList(){
+  var from=document.getElementById('bs_from').value||'';
+  var to=document.getElementById('bs_to').value||'';
+  var q=(document.getElementById('bs_q').value||'').trim().toLowerCase();
+  var list=STATE.tasks.filter(function(t){
+    if((from||to)&&!t.date) return false;
+    if(from&&(t.endDate||t.date)<from) return false;
+    if(to&&t.date>to) return false;
+    if(q&&(t.title||'').toLowerCase().indexOf(q)<0&&(t.reportNo||'').toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  var html='';
+  var bc=document.getElementById('batchCount');
+  if(bc) bc.textContent='匹配 '+list.length+' 个任务';
+  if(!list.length) html+='<div class="empty">没有符合条件的任务</div>';
+  list.forEach(function(t){
+    var sel=STATE.batchSel[t.id];
+    html+='<div class="task-item" style="margin-bottom:6px" onclick="toggleSel(\''+t.id+'\')">'
+      +'<div class="chk'+(sel?' on':'')+'">'+(sel?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>'
+      +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
+      +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
+      +'<div class="t-sub">'+(t.date?esc(t.date)+(t.endDate&&t.endDate!==t.date?'~'+esc(t.endDate.slice(5)):''):'<span style="color:var(--hint)">待安排</span>')+'<span class="sep">·</span>'+STATUS[t.status]+'</div></div></div>';
+  });
+  document.getElementById('bsList').innerHTML=html;
+  var n=Object.keys(STATE.batchSel).length;
+  var btn=document.getElementById('bs_apply');
+  if(btn) btn.textContent=n?('应用（已选 '+n+'）'):'应用';
+}
+function toggleSel(id){
+  if(STATE.batchSel[id]) delete STATE.batchSel[id];
+  else STATE.batchSel[id]=1;
+  renderBatchList();
+}
+function applyBatchView(){
+  var ids=Object.keys(STATE.batchSel);
+  if(!ids.length){ toast('请先勾选任务'); return; }
+  var st=document.getElementById('bs_stage').value;
+  STATE.tasks.forEach(function(t){ if(STATE.batchSel[t.id]){ t.status=st; if(st!=='pending'&&!t.date){ t.date=todayStr(); } } });
+  saveAll(); renderAll(); closeBatchView();
+  toast('已将 '+ids.length+' 个任务设为「'+STATUS[st]+'」');
+}
+
+/* ================= 顺路编排（分类→勾选→排序→安排） ================= */
+var CHECK_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+function showRouteView(dateStr){
+  STATE.routeDate=dateStr||todayStr();
+  STATE.routeSel={}; STATE.routeSorted=null;
+  document.getElementById('calWrap').classList.add('hide');
+  document.getElementById('sidePanel').classList.remove('show');
+  document.getElementById('sidePanel').classList.add('hide');
+  document.getElementById('batchView').style.display='none';
+  document.getElementById('routeView').style.display='block';
+  renderRouteView();
+}
+function closeRouteView(){
+  STATE.routeSel={}; STATE.routeSorted=null;
+  switchTab('cal');
+  renderSide();
+}
+function renderRouteView(){
+  var html='<div style="font-size:13px;color:var(--sub);margin-bottom:10px">起点：<b style="color:var(--txt)">'+esc(STATE.set.startDistrict)+'</b>（设置中可改）· 待安排任务已按区县自动分类</div>'
+    +'<div class="frow" style="margin-bottom:4px"><label>安排到哪一天</label>'
+    +'<input type="date" id="routeDate" value="'+esc(STATE.routeDate)+'" style="width:100%;min-height:46px;border:1px solid var(--line2);border-radius:12px;padding:0 12px;background:var(--card)"></div>'
+    +'<div id="routeList"></div>';
+  document.getElementById('routeBody').innerHTML=html;
+  renderRouteBody();
+}
+function renderRouteBody(){
+  var groups={}, unloc=[];
+  STATE.tasks.forEach(function(t){
+    if(t.status!=='pending') return;
+    if(t.loc&&t.loc.district){ (groups[t.loc.district]=groups[t.loc.district]||[]).push(t); }
+    else unloc.push(t);
+  });
+  var html='';
+  var gkeys=Object.keys(groups).sort();
+  gkeys.forEach(function(g){
+    var allOn=groups[g].every(function(t){return STATE.routeSel[t.id];});
+    html+='<div style="margin-top:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="font-size:13px;font-weight:600;color:var(--sub)">'+esc(g)+' <span style="color:var(--hint);font-weight:400">'+groups[g].length+' 项</span></span>'
+      +'<button class="btn sm ghost" onclick="groupToggle(\''+esc(g)+'\')">'+(allOn?'取消全选':'全选')+'</button></div>';
+    groups[g].forEach(function(t){ html+=routeTaskItem(t); });
+    html+='</div>';
+  });
+  if(unloc.length){
+    html+='<div style="margin-top:12px"><div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:6px">无法定位 '+unloc.length+' 项（排序时放最后）</div>';
+    unloc.forEach(function(t){ html+=routeTaskItem(t); });
+    html+='</div>';
+  }
+  if(!gkeys.length&&!unloc.length) html='<div class="empty">没有待安排任务</div>';
+  var list=document.getElementById('routeList');
+  if(list) list.innerHTML=html;
+  updateRouteCount();
+}
+function routeTaskItem(t){
+  var sel=STATE.routeSel[t.id];
+  return '<div class="task-item" style="margin-bottom:6px" onclick="toggleRouteSel(\''+t.id+'\')">'
+    +'<div class="chk'+(sel?' on':'')+'">'+(sel?CHECK_SVG:'')+'</div>'
+    +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
+    +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
+    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span>'+esc(t.reportNo||'无单号')+'</div></div></div>';
+}
+function toggleRouteSel(id){
+  if(STATE.routeSel[id]) delete STATE.routeSel[id];
+  else STATE.routeSel[id]=1;
+  refreshRoute();
+}
+function groupToggle(g){
+  var gTasks=STATE.tasks.filter(function(t){return t.status==='pending'&&t.loc&&t.loc.district===g;});
+  var allOn=gTasks.every(function(t){return STATE.routeSel[t.id];});
+  gTasks.forEach(function(t){ if(allOn) delete STATE.routeSel[t.id]; else STATE.routeSel[t.id]=1; });
+  refreshRoute();
+}
+function refreshRoute(){
+  STATE.routeSorted=null;
+  document.getElementById('routeResult').innerHTML='';
+  renderRouteBody();
+  updateRouteCount();
+}
+function updateRouteCount(){
+  var n=Object.keys(STATE.routeSel).length;
+  var el=document.getElementById('routeCount');
+  if(el) el.textContent=n?('已选 '+n+' 项'):'';
+  var btn=document.getElementById('routePlanBtn');
+  if(btn) btn.textContent=n?('开始智能排序（已选 '+n+'）'):'开始智能排序';
+}
+function planSelectedRoute(){
+  var ids=Object.keys(STATE.routeSel);
+  if(!ids.length){ toast('请先勾选要检验的任务'); return; }
+  var date=document.getElementById('routeDate').value||todayStr();
+  var sel=STATE.tasks.filter(function(t){return STATE.routeSel[t.id];});
+  var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
+  var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
+  var located=sel.filter(function(t){return t.loc;});
+  var unloc=sel.filter(function(t){return !t.loc;});
+  var cur=startLoc, seq=[], remain=located.slice();
+  while(remain.length){
+    var bi=-1,bd=999;
+    for(var i=0;i<remain.length;i++){ var d=driveMin(cur,remain[i].loc); if(d<bd){bd=d;bi=i;} }
+    seq.push({t:remain[bi],min:bd}); remain.splice(bi,1);
+    cur=seq[seq.length-1].t.loc;
+  }
+  unloc.forEach(function(t){ seq.push({t:t,min:null}); });
+  STATE.routeSorted={date:date,seq:seq};
+  renderRouteResult(date,seq);
+}
+function renderRouteResult(date,seq){
+  var html='<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:14px">'
+    +'<div style="font-size:15px;font-weight:600;margin-bottom:10px">推荐路线（贪心最近原则 · 不走回头路）</div>';
+  if(!seq.length){
+    html+='<div class="empty">没有可排序的任务</div>';
+  }else{
+    var clock=STATE.set.startTime;
+    seq.forEach(function(item,i){
+      var far=item.min!=null&&item.min>20;
+      html+='<div class="route-step"><div class="idx">'+(i+1)+'</div>'
+        +'<div class="rt"><div class="a" style="color:'+typeColor(item.t.deviceType)+'">'+esc(taskTitle(item.t))+'</div>'
+        +'<div class="b">'+(item.t.loc?esc(item.t.loc.district):'<span style="color:var(--hint)">无法定位</span>')+'<span class="sep">·</span>'+(item.min==null?'—':(item.min+' 分钟'+(far?' <span style="color:var(--orange)">(较远)</span>':'')))+'</div></div>'
+        +'<div class="tm">'+clock+'</div></div>';
+      if(item.min!=null) clock=addMinutes(clock,(item.t.durationMin||STATE.set.taskMinutes)+(i<seq.length-1&&seq[i+1].min?seq[i+1].min:0));
+    });
+    html+='<div style="font-size:12px;color:var(--hint);margin-top:8px">开始时间 = 每个任务 '+STATE.set.taskMinutes+' 分钟检验时长 + 上一站车程推算（设置可调）。</div>';
+  }
+  html+='<div class="form-actions">'
+    +(seq.length?'<button class="btn" onclick="applyRouteSelected()">确认安排到 '+date.slice(5)+'（'+seq.length+' 个任务）</button>':'')
+    +'<button class="btn ghost" onclick="refreshRoute()">重新选择</button></div></div>';
+  document.getElementById('routeResult').innerHTML=html;
+  document.getElementById('routeResult').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function applyRouteSelected(){
+  var rs=STATE.routeSorted; if(!rs||!rs.seq.length) return;
+  var clock=STATE.set.startTime;
+  rs.seq.forEach(function(item,i){
+    var t=item.t;
+    t.date=rs.date; t.time=clock; t.status='scheduled';
+    if(item.min!=null) clock=addMinutes(clock,(t.durationMin||STATE.set.taskMinutes)+(i<rs.seq.length-1&&rs.seq[i+1].min?rs.seq[i+1].min:0));
+  });
+  saveAll(); renderAll(); closeRouteView();
+  toast('已安排 '+rs.seq.length+' 个任务到 '+rs.date);
+}
+
+/* ================= 高德地图（联网精准路线） ================= */
+function geoCache(){ try{return JSON.parse(localStorage.getItem(P+'geocache')||'{}');}catch(e){return {};} }
+function saveGeoCache(c){ localStorage.setItem(P+'geocache',JSON.stringify(c)); }
+function driveCache(){ try{return JSON.parse(localStorage.getItem(P+'drivecache')||'{}');}catch(e){return {};} }
+function saveDriveCache(c){ localStorage.setItem(P+'drivecache',JSON.stringify(c)); }
+function jsonp(url,timeout){
+  return new Promise(function(resolve,reject){
+    var cb='_cb'+Math.random().toString(36).slice(2,8);
+    var full=url+(url.indexOf('?')>-1?'&':'?')+'callback='+cb;
+    var s=document.createElement('script');
+    window[cb]=function(data){ cleanup(); resolve(data); };
+    function cleanup(){ delete window[cb]; if(s.parentNode) s.parentNode.removeChild(s); clearTimeout(timer); }
+    var timer=setTimeout(function(){ cleanup(); reject(new Error('请求超时')); }, timeout||8000);
+    s.onerror=function(){ cleanup(); reject(new Error('网络错误')); };
+    s.src=full;
+    document.head.appendChild(s);
+  });
+}
+function amapGeocode(address){
+  var c=geoCache();
+  if(c[address]) return Promise.resolve(c[address]);
+  return jsonp('https://restapi.amap.com/v3/geocode/geo?address='+encodeURIComponent(address)+'&city='+encodeURIComponent('成都')+'&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
+    if(d.status==='1'&&d.geocodes&&d.geocodes.length){
+      var g=d.geocodes[0].location.split(',');
+      var loc={lng:+g[0],lat:+g[1],district:d.geocodes[0].district||''};
+      c[address]=loc; saveGeoCache(c);
+      return loc;
+    }
+    throw new Error('地理编码失败');
+  });
+}
+function amapDrive(from,to){
+  var key=from.lng+','+from.lat+'|'+to.lng+','+to.lat;
+  var c=driveCache();
+  if(c[key]) return Promise.resolve(c[key]);
+  return jsonp('https://restapi.amap.com/v3/direction/driving?origin='+from.lng+','+from.lat+'&destination='+to.lng+','+to.lat+'&strategy=10&key='+encodeURIComponent(STATE.set.mapKey)).then(function(d){
+    if(d.status==='1'&&d.route&&d.route.paths&&d.route.paths.length){
+      var min=Math.max(1,Math.round(d.route.paths[0].duration/60));
+      c[key]=min; saveDriveCache(c);
+      return min;
+    }
+    throw new Error('驾车规划失败');
+  });
+}
+
+/* ================= 顺路编排 ================= */
+function openRoutePlan(dateStr){
+  var date=dateStr||todayStr();
+  var cands=STATE.tasks.filter(function(t){return t.status==='pending'&&t.loc;});
+  var un=STATE.tasks.filter(function(t){return t.status==='pending'&&!t.loc;});
+  if(!cands.length){
+    openSheet('顺路编排','<div class="empty">没有可编排的待安排任务（有定位的）</div>'
+      +'<button class="btn" style="width:100%" onclick="closeSheet()">知道了</button>');
+    return;
+  }
+  if(STATE.set.useMap&&STATE.set.mapKey){
+    planOnline(date,cands,un);
+  }else{
+    planOffline(date,cands,un);
+  }
+}
+function planOffline(date,cands,un){
+  var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
+  var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
+  var cur=startLoc, seq=[], remain=cands.slice();
+  while(remain.length){
+    var bi=-1,bd=999;
+    for(var i=0;i<remain.length;i++){
+      var d=driveMin(cur,remain[i].loc);
+      if(d<bd){bd=d;bi=i;}
+    }
+    if(bd>20) break;
+    seq.push({t:remain[bi],min:bd}); remain.splice(bi,1);
+    cur=seq[seq.length-1].t.loc;
+  }
+  renderRouteResult(date,seq,remain,un,false);
+}
+function planOnline(date,cands,un){
+  openSheet('顺路编排 · '+date.slice(5),'<div class="empty">正在获取高德真实路况，请稍候…</div>');
+  var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
+  var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
+  var locs={};
+  var geos=cands.map(function(t){
+    return amapGeocode(t.address||t.loc.district)
+      .then(function(loc){ locs[t.id]=loc; })
+      .catch(function(){ locs[t.id]=null; });
+  });
+  Promise.all(geos).then(function(){
+    var remain=cands.slice(), seq=[];
+    function step(cur){
+      if(!remain.length){ finish(); return; }
+      var jobs=remain.map(function(t){
+        var loc=locs[t.id]||t.loc;
+        return amapDrive(cur,loc).then(function(min){ return {t:t,min:min}; }).catch(function(){ return null; });
+      });
+      Promise.all(jobs).then(function(res){
+        var ok=res.filter(Boolean);
+        if(!ok.length){ finish(); return; }
+        ok.sort(function(a,b){return a.min-b.min;});
+        var best=ok[0];
+        if(best.min>20){ finish(); return; }
+        seq.push(best);
+        remain.splice(remain.indexOf(best.t),1);
+        step(locs[best.t.id]||best.t.loc);
+      });
+    }
+    function finish(){
+      renderRouteResult(date,seq,remain,un,true);
+    }
+    step(startLoc);
+  });
+}
+function renderRouteResult(date,seq,remain,un,online){
+  var html='<div style="font-size:13px;color:var(--sub);margin-bottom:12px">起点：'+esc(STATE.set.startDistrict)+'（单位/家）→ 每段车程 ≤20 分钟，贪心最近原则，不走回头路。编排到 <b style="color:var(--txt)">'+date+' '+weekCN(date)+'</b>。<br>'
+    +'<span style="color:'+(online?'var(--green)':'var(--hint)')+'">'+(online?'路线计算：高德实时路况（联网）':'路线计算：离线估算（未开启联网）')+'</span></div>';
+  var times=[];
+  if(!seq.length){
+    html+='<div class="empty">没有 20 分钟内可达的任务，请调整起点或稍后再试。</div>';
+  }else{
+    var clock=STATE.set.startTime;
+    seq.forEach(function(item,i){
+      html+='<div class="route-step"><div class="idx">'+(i+1)+'</div>'
+        +'<div class="rt"><div class="a" style="color:'+typeColor(item.t.deviceType)+'">'+esc(taskTitle(item.t))+'</div>'
+        +'<div class="b">'+(item.t.loc?esc(item.t.loc.district):'')+' · '+esc(item.t.address||'')+(i>0?' · 车程 '+item.min+' 分钟':' · 距起点 '+item.min+' 分钟')+'</div></div>'
+        +'<div class="tm">'+clock+'</div></div>';
+      times.push(clock);
+      clock=addMinutes(clock,(item.t.durationMin||STATE.set.taskMinutes)+(i<seq.length-1?seq[i+1].min:0));
+    });
+    html+='<div style="font-size:12px;color:var(--hint);margin-top:8px">每个任务按默认 '+STATE.set.taskMinutes+' 分钟检验时长推算下一站开始时间（可在设置调整）。</div>';
+  }
+  if(remain.length) html+='<div style="font-size:13px;color:var(--orange);margin-top:12px;padding:10px 12px;background:#FFF8E6;border-radius:12px">另有 '+remain.length+' 个任务超出 20 分钟车程，本次不纳入，留在待安排。</div>';
+  if(un.length) html+='<div style="font-size:13px;color:var(--red);margin-top:8px;padding:10px 12px;background:#FFF0EF;border-radius:12px">'+un.length+' 个任务无法定位，不参与编排（可在任务中补充含区名的地址）。</div>';
+  var idsJs=JSON.stringify(seq.map(function(item){return item.t.id;})).replace(/"/g,"'");
+  var timesJs=JSON.stringify(times).replace(/"/g,"'");
+  html+='<div class="form-actions">'
+    +(seq.length?'<button class="btn" onclick="applyRoutePlan(\''+date+'\','+idsJs+','+timesJs+')">确认编排 '+seq.length+' 个任务</button>':'')
+    +'<button class="btn ghost" onclick="closeSheet()">关闭</button>'
+    +'</div>';
+  openSheet('顺路编排 · '+date.slice(5), html);
+}
+function applyRoutePlan(date,ids,times){
+  ids.forEach(function(id,i){
+    var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+    t.date=date; t.time=(times&&times[i])||STATE.set.startTime; t.status='scheduled';
+  });
+  saveAll(); renderAll(); closeSheet();
+  toast('已编排 '+ids.length+' 个任务到 '+date);
+}
+
+/* ================= 报检短信导入 ================= */
+function openSmsImport(){
+  var html='<div class="frow"><label>粘贴报检短信</label><textarea class="sms-text" id="smsText" placeholder="将研究院发来的报检短信整段粘贴到这里…"></textarea>'
+    +'<div class="hint">支持两种格式：①研究院报检短信 ②综合检验系统复制的报检信息（含"报检单号：使用单位："等字段）。系统格式自动识别，任务名生成「使用单位（项目名称）」。</div></div>'
+    +'<button class="btn" style="width:100%" onclick="doParseSms()">解析并生成待安排任务</button>'
+    +'<div id="smsResult"></div>';
+  openSheet('报检短信导入', html);
+}
+function doParseSms(){
+  var text=document.getElementById('smsText').value;
+  if(!text.trim()){ toast('请先粘贴短信或报检信息'); return; }
+  var isForm=detectForm(text);
+  var r=isForm?parseFormData(text):parseSms(text);
+  if(!r.company&&!r.reportNo&&!r.address){ toast('未能识别关键信息，请检查格式'); return; }
+  STATE.smsPreview=r; STATE.smsIsForm=isForm;
+  var defTitle=isForm?(r.company+'（'+r.projectName+'）'):r.company;
+  var html='<div class="preview-card"><div class="pv-title">解析结果 · 确认后入库'+(isForm?'（综合检验系统格式）':'（报检短信格式）')+'</div>'
+    +'<div class="frow"><label>任务标题</label><input type="text" id="p_company" value="'+esc(defTitle)+'"></div>'
+    +(isForm?'<div class="frow row2"><div><label>项目名称</label><input type="text" id="p_project" value="'+esc(r.projectName)+'"></div>'
+      +'<div><label>维保单位</label><input type="text" id="p_maint" value="'+esc(r.maintCo)+'"></div></div>':'')
+    +'<div class="frow row2"><div><label>设备类别</label><select id="p_type">'+typeOptionsHtml(r.deviceType)+'</select></div>'
+    +'<div><label>报检数量（台）</label><input type="number" id="p_count" value="'+r.count+'" min="1"></div></div>'
+    +'<div class="frow row2"><div><label>报检单号</label><input type="text" id="p_no" value="'+esc(r.reportNo)+'"></div>'
+    +'<div><label>下次检验日期</label><input type="date" id="p_next" value="'+esc(r.nextDate)+'"></div></div>'
+    +'<div class="frow"><label>项目地址</label><input type="text" id="p_addr" value="'+esc(r.address)+'"><div class="hint" id="p_locHint"></div></div>'
+    +'<div class="frow row2"><div><label>检验现场联系人</label><input type="text" id="p_contact" value="'+esc(r.contact)+'"></div>'
+    +'<div><label>联系电话</label><input type="tel" id="p_phone" value="'+esc(r.phone)+'"></div></div>'
+    +'<div class="frow"><label>备注</label><textarea id="p_note" style="min-height:56px"></textarea></div>'
+    +'<div class="form-actions"><button class="btn" onclick="confirmSmsImport()">确认添加</button>'
+    +'<button class="btn ghost" onclick="document.getElementById(\'smsResult\').innerHTML=\'\';STATE.smsPreview=null">重新解析</button></div>'
+    +'</div>';
+  document.getElementById('smsResult').innerHTML=html;
+  var loc=resolveLoc(r.address);
+  var h=document.getElementById('p_locHint');
+  if(h) h.textContent=loc?('将定位到：'+loc.district):'无法定位（将归入无法确定位置）';
+}
+function typeOptionsHtml(sel){
+  var html='';
+  var keys=Object.keys(STATE.types);
+  keys.forEach(function(k){ html+='<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(k)+'</option>'; });
+  if(keys.indexOf(sel)<0&&sel) html+='<option value="'+esc(sel)+'" selected>'+esc(sel)+'（新）</option>';
+  html+='<option value="__new">+ 新建类别…</option>';
+  return html;
+}
+function confirmSmsImport(){
+  var r=STATE.smsPreview; if(!r) return;
+  var type=document.getElementById('p_type').value;
+  if(type==='__new'){
+    var nn=prompt('新类别名称：');
+    if(!nn) return;
+    type=nn.trim();
+    if(!STATE.types[type]) STATE.types[type]=pickColor();
+  }
+  var t={
+    id:uid(),
+    title:document.getElementById('p_company').value.trim()||r.company,
+    projectName:document.getElementById('p_project')?document.getElementById('p_project').value.trim():'',
+    maintCo:document.getElementById('p_maint')?document.getElementById('p_maint').value.trim():'',
+    deviceType:type,
+    count:+document.getElementById('p_count').value||1,
+    reportNo:document.getElementById('p_no').value.trim(),
+    nextCheckDate:document.getElementById('p_next').value,
+    address:document.getElementById('p_addr').value.trim(),
+    contact:document.getElementById('p_contact').value.trim(),
+    phone:document.getElementById('p_phone').value.trim(),
+    note:document.getElementById('p_note').value.trim(),
+    productType:'', time125:'',
+    date:'', time:'', endDate:'', status:'pending',
+    postponeCount:0, postponedDates:[]
+  };
+  t.loc=resolveLoc(t.address);
+  STATE.tasks.push(t);
+  saveAll(); renderAll();
+  openSheet('导入成功','<div class="empty" style="padding:30px 0">任务「'+esc(taskTitle(t))+'」已加入待安排'+(t.loc?'，已自动定位到 '+esc(t.loc.district):'，需补充地址以参与顺路编排')+'。</div>'
+    +'<button class="btn" style="width:100%" onclick="closeSheet();renderAll()">完成</button>');
+  toast('已生成待安排任务');
+}
+
+/* ================= 设置 ================= */
+function openSettings(){
+  var html='';
+  html+='<div class="set-group"><h4>设备类别 · 字体颜色</h4>';
+  Object.keys(STATE.types).forEach(function(k){
+    html+='<div class="color-row"><span class="nm" style="color:'+STATE.types[k]+'">'+esc(k)+'</span>'
+      +'<input type="color" value="'+STATE.types[k]+'" onchange="setTypeColor(\''+esc(k)+'\',this.value)">'
+      +'<button class="del" onclick="delType(\''+esc(k)+'\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>';
+  });
+  html+='<div class="type-add"><input type="text" id="newTypeName" placeholder="新类别，如：观光车定期检验"><button class="btn sm" onclick="addType()">添加</button></div></div>';
+  html+='<div class="set-group"><h4>报告阶段 · 外围色条</h4>';
+  Object.keys(STATUS).forEach(function(k){
+    html+='<div class="color-row"><span class="nm">'+STATUS[k]+'</span>'
+      +'<input type="color" value="'+STATE.cols[k]+'" onchange="setStatusColor(\''+k+'\',this.value)"></div>';
+  });
+  html+='</div>';
+  html+='<div class="set-group"><h4>顺路编排参数</h4>'
+    +'<div class="frow row2"><div><label>起点（单位/家）</label><select id="setStart">'+districtOptions()+'</select></div>'
+    +'<div><label>平均车速（km/h）</label><input type="number" id="setSpeed" value="'+STATE.set.speedKmh+'" min="10" max="80"></div></div>'
+    +'<div class="frow row2"><div><label>默认检验时长（分钟）</label><input type="number" id="setMinutes" value="'+STATE.set.taskMinutes+'" min="30" max="300"></div>'
+    +'<div><label>每天开始时间</label><input type="time" id="setStartTime" value="'+STATE.set.startTime+'"></div></div>'
+    +'<div class="hint" style="font-size:12px;color:var(--hint)">离线估算：车程 = 直线距离 × 1.4 绕行系数 ÷ 车速；同区内任务按约 3 公里估算。</div>'
+    +'</div>';
+  html+='<div class="set-group"><h4>联网精准路线（高德地图）</h4>'
+    +'<div class="color-row"><span class="nm">启用高德实时路线（需联网）</span>'
+    +'<input type="checkbox" id="setUseMap" '+(STATE.set.useMap?'checked':'')+' style="width:22px;height:22px;margin:0 12px 0 auto"></div>'
+    +'<div class="frow" style="margin-top:10px"><label>高德 Web服务 Key</label>'
+    +'<input type="text" id="setMapKey" value="'+esc(STATE.set.mapKey)+'" placeholder="申请：https://console.amap.com">'
+    +'<div class="hint">免费申请（个人开发者有每日免费额度）。填入后顺路编排使用真实驾车时间；未填或请求失败时自动退回离线估算。</div></div>'
+    +'</div>';
+  html+='<div class="set-group"><h4>多人实时同步</h4>'
+    +'<div class="frow"><label>同步服务器地址</label>'
+    +'<input type="text" id="setSyncUrl" value="'+esc(STATE.set.syncUrl)+'" placeholder="如 http://123.45.67.89:8080">'
+    +'<div class="hint">服务器（Mac 或云服务器）的地址；团队所有设备填同一个地址即可实时同步，每 5 秒自动同步一次。</div></div>'
+    +'<div class="frow"><label>访问令牌（与服务器 config.json 一致）</label>'
+    +'<input type="text" id="setSyncToken" value="'+esc(STATE.set.syncToken)+'" placeholder="服务器配置的 token">'
+    +'<div class="hint">服务器配置了 token 时必须填写，否则会被拒绝（403）。局域网自用且未配 token 可留空。</div></div>'
+    +'<div class="form-actions"><button class="btn" style="flex:1" onclick="saveSettings()">保存并连接</button>'
+    +'<button class="btn ghost" style="flex:1" onclick="syncStart()">立即重连</button></div>'
+    +'<div id="syncStatus" style="font-size:12px;color:var(--sub);margin-top:8px"></div>'
+    +'</div>';
+  html+='<div class="set-group"><h4>数据管理</h4>'
+    +'<div class="form-actions" style="flex-wrap:wrap">'
+    +'<button class="btn" style="flex:1" onclick="exportJSON()">导出 JSON 备份</button>'
+    +'<button class="btn ghost" style="flex:1" onclick="document.getElementById(\'impFile\').click()">导入恢复</button></div>'
+    +'<div class="form-actions" style="flex-wrap:wrap;margin-top:10px">'
+    +'<button class="btn ghost" style="flex:1" onclick="confirmClearSeed()">清空示例数据</button>'
+    +'<button class="btn danger" style="flex:1" onclick="confirmClearAll()">清空全部数据</button></div>'
+    +'</div>';
+  html+='<button class="btn" style="width:100%" onclick="saveSettings()">保存设置</button>';
+  openSheet('设置', html);
+}
+function districtOptions(){
+  return Object.keys(DISTRICTS).map(function(k){
+    return '<option value="'+esc(k)+'"'+(STATE.set.startDistrict===k?' selected':'')+'>'+esc(k)+'</option>';
+  }).join('');
+}
+function setTypeColor(k,v){ STATE.types[k]=v; saveAll(); renderAll(); }
+function setStatusColor(k,v){ STATE.cols[k]=v; saveAll(); renderAll(); }
+function delType(k){
+  var used=STATE.tasks.some(function(t){return t.deviceType===k;});
+  showConfirm('删除类别「'+k+'」？', used?'有任务正在使用该类别，删除后这些任务将变为默认黑色。':'', function(){
+    delete STATE.types[k];
+    saveAll(); renderAll(); openSettings();
+  });
+}
+function addType(){
+  var nn=document.getElementById('newTypeName').value.trim();
+  if(!nn){ toast('请输入类别名称'); return; }
+  if(STATE.types[nn]){ toast('该类别已存在'); return; }
+  STATE.types[nn]=pickColor();
+  saveAll(); renderAll(); openSettings();
+  toast('已添加类别');
+}
+function saveSettings(){
+  STATE.set.startDistrict=document.getElementById('setStart').value;
+  STATE.set.speedKmh=+document.getElementById('setSpeed').value||25;
+  STATE.set.taskMinutes=+document.getElementById('setMinutes').value||90;
+  STATE.set.startTime=document.getElementById('setStartTime').value||'09:00';
+  STATE.set.useMap=document.getElementById('setUseMap').checked;
+  STATE.set.mapKey=document.getElementById('setMapKey').value.trim();
+  STATE.set.syncUrl=document.getElementById('setSyncUrl').value.trim();
+  STATE.set.syncToken=document.getElementById('setSyncToken').value.trim();
+  saveAll(); renderAll(); closeSheet();
+  syncStart();
+  toast('设置已保存'+(STATE.set.syncUrl?'，正在连接同步服务器…':''));
+}
+
+/* ================= 数据管理 ================= */
+function exportJSON(){
+  var data={version:1, exportedAt:todayStr(), tasks:STATE.tasks, deviceTypes:STATE.types, statusColors:STATE.cols, settings:STATE.set};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='检验工作台备份_'+todayStr()+'.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},300);
+  toast('备份文件已下载');
+}
+function importJSON(input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var d=JSON.parse(rd.result);
+      if(d.tasks&&Array.isArray(d.tasks)){
+        STATE.tasks=d.tasks;
+        if(d.deviceTypes) STATE.types=Object.assign({},DEFAULT_TYPES,d.deviceTypes);
+        if(d.statusColors) STATE.cols=Object.assign({},DEFAULT_COLS,d.statusColors);
+        if(d.settings) STATE.set=Object.assign({},DEFAULT_SETTINGS,d.settings);
+        saveAll(); renderAll();
+        toast('导入成功，共 '+d.tasks.length+' 条任务');
+      }else{
+        toast('文件格式不正确');
+      }
+    }catch(e){ toast('导入失败：文件不是有效的备份'); }
+  };
+  rd.readAsText(f);
+  input.value='';
+}
+function confirmClearAll(){
+  showConfirm('清空全部数据？','所有任务、类别与设置将被删除，此操作不可恢复。建议先导出备份！', function(){
+    STATE.tasks=[]; saveAll(); renderAll();
+    toast('已清空全部数据');
+  });
+}
+function confirmClearSeed(){
+  showConfirm('清空示例数据？','将删除所有任务（含示例与真实数据）。若只想移除示例，请手动删除示例任务。', function(){
+    STATE.tasks=[]; saveAll(); renderAll();
+    toast('已清空数据');
+  });
+}
+function confirmDelTask(id){
+  var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
+  showConfirm('删除任务？','「'+taskTitle(t)+'」将被删除，此操作不可恢复。', function(){
+    STATE.tasks=STATE.tasks.filter(function(x){return x.id!==id;});
+    saveAll(); renderAll(); closeSheet();
+    toast('已删除');
+  });
+}
+
+/* ================= 弹层/导航 ================= */
+function openSheet(title,body){
+  document.getElementById('sheetTitle').textContent=title;
+  document.getElementById('sheetBody').innerHTML=body;
+  document.getElementById('mask').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeSheet(){ document.getElementById('mask').classList.remove('show'); document.body.style.overflow=''; }
+function showConfirm(title,desc,fn){
+  document.getElementById('cfTitle').textContent=title;
+  document.getElementById('cfDesc').textContent=desc;
+  cfAction=fn;
+  document.getElementById('confirmMask').classList.add('show');
+}
+function cfAction(){}
+function closeConfirm(){ document.getElementById('confirmMask').classList.remove('show'); }
+function shiftMonth(n){
+  STATE.viewDate.setMonth(STATE.viewDate.getMonth()+n);
+  renderAll();
+}
+function goToday(){
+  var t=new Date();
+  STATE.viewDate=new Date(t.getFullYear(),t.getMonth(),1);
+  renderAll();
+}
+function switchTab(tab){
+  var cal=document.getElementById('calWrap'), side=document.getElementById('sidePanel'), bv=document.getElementById('batchView'), rv=document.getElementById('routeView');
+  var tc=document.getElementById('tabCal'), tt=document.getElementById('tabTask'), tb=document.getElementById('tabBatch');
+  tc.classList.remove('on'); tt.classList.remove('on'); if(tb) tb.classList.remove('on');
+  bv.style.display='none';
+  rv.style.display='none';
+  if(tab==='cal'){ cal.classList.remove('hide'); side.classList.remove('show'); side.classList.remove('hide'); tc.classList.add('on'); }
+  if(tab==='task'){ cal.classList.add('hide'); side.classList.remove('hide'); side.classList.add('show'); tt.classList.add('on'); }
+  if(tab==='batch'){ cal.classList.add('hide'); side.classList.remove('show'); side.classList.add('hide'); bv.style.display='block'; STATE.batch=true; STATE.batchSel={}; renderBatchView(); tb.classList.add('on'); }
+}
+document.getElementById('mask').addEventListener('click',function(e){ if(e.target===this) closeSheet(); });
+document.getElementById('confirmMask').addEventListener('click',function(e){ if(e.target===this) closeConfirm(); });
+
+/* ================= 启动 ================= */
+loadAll();
+var now=new Date();
+STATE.viewDate=new Date(now.getFullYear(),now.getMonth(),1);
+renderAll();
+syncStart();
+</script>
+</body>
+</html>
