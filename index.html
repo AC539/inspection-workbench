@@ -203,6 +203,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
     </div>
     <button class="icon-btn" title="导出备份" onclick="exportJSON()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
     <button class="icon-btn" title="导入恢复" onclick="document.getElementById('impFile').click()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L8 7m4-4l4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+    <button class="icon-btn" title="手机/电脑数据互通" onclick="openTransfer()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h12M16 4l3 3-3 3M20 17H8M8 14l-3 3 3 3"/></svg></button>
     <button class="icon-btn" title="设置" onclick="openSettings()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56h.08a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
     <input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(this)">
   </div>
@@ -1399,6 +1400,88 @@ function saveSettings(){
   saveAll(); renderAll(); closeSheet();
   syncStart();
   toast('设置已保存'+(STATE.set.syncUrl?'，正在连接同步服务器…':''));
+}
+
+/* ================= 数据互通（剪贴板代码） ================= */
+function openTransfer(){
+  var html='<div style="font-size:13px;color:var(--sub);margin-bottom:14px;line-height:1.7">把本机数据「生成一段代码」，复制后到另一台设备（手机/电脑）打开工作台，同样点顶部⇄图标，粘贴导入即可完成互通。按任务合并，不覆盖各自已有数据。</div>'
+    +'<div class="set-group"><h4>① 生成本机互通代码</h4>'
+    +'<button class="btn" style="width:100%" onclick="generateCode()">生成并自动复制</button>'
+    +'<textarea id="txCode" class="sms-text" style="margin-top:10px;min-height:80px;font-size:12px" readonly placeholder="点上方按钮生成代码…"></textarea></div>'
+    +'<div class="set-group"><h4>② 从对方代码导入</h4>'
+    +'<textarea id="txImport" class="sms-text" style="min-height:80px;font-size:12px" placeholder="粘贴对方生成的代码…"></textarea>'
+    +'<div class="form-actions" style="margin-top:10px"><button class="btn" style="flex:1" onclick="importCode()">导入并合并</button></div>'
+    +'<div id="txResult" style="font-size:13px;margin-top:10px"></div></div>';
+  openSheet('手机/电脑数据互通', html);
+}
+function generateCode(){
+  try{
+    var code=encodeData();
+    var ta=document.getElementById('txCode');
+    ta.value=code;
+    copyText(code);
+    toast('代码已生成并复制，到另一台设备粘贴导入');
+  }catch(e){
+    toast('生成失败：'+e.message);
+  }
+}
+function copyText(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).catch(function(){ fallbackCopy(t); });
+  }else{
+    fallbackCopy(t);
+  }
+}
+function fallbackCopy(t){
+  var ta=document.createElement('textarea');
+  ta.value=t;
+  ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  ta.remove();
+}
+function importCode(){
+  var v=document.getElementById('txImport').value.trim();
+  var res=document.getElementById('txResult');
+  if(!v){ res.innerHTML='<span style="color:var(--orange)">请先粘贴对方生成的代码</span>'; return; }
+  try{
+    var d=decodeData(v);
+    var r=mergeIncoming(d);
+    res.innerHTML='<span style="color:var(--green)">互通完成：新增 '+r.add+' 条，更新 '+r.upd+' 条，当前共 '+STATE.tasks.length+' 条任务。</span>';
+    setTimeout(closeSheet,1500);
+  }catch(e){
+    res.innerHTML='<span style="color:var(--red)">导入失败：'+esc(e.message)+'</span>';
+  }
+}
+function encodeData(){
+  var obj={v:1,types:STATE.types,cols:STATE.cols,tasks:STATE.tasks};
+  var s=JSON.stringify(obj);
+  return 'JYCODE1:'+btoa(unescape(encodeURIComponent(s)));
+}
+function decodeData(code){
+  var m=code.match(/^JYCODE1:([\s\S]+)$/);
+  if(!m) throw new Error('代码格式不正确');
+  var s=decodeURIComponent(escape(atob(m[1].trim())));
+  var d=JSON.parse(s);
+  if(!d||!Array.isArray(d.tasks)) throw new Error('代码内容无效');
+  return d;
+}
+function mergeIncoming(d){
+  var byId={};
+  STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
+  var add=0,upd=0;
+  (d.tasks||[]).forEach(function(t){
+    if(!t.id) return;
+    if(byId[t.id]){
+      if((t.updatedAt||0)>((byId[t.id].updatedAt)||0)){ byId[t.id]=t; upd++; }
+    }else{ byId[t.id]=t; add++; }
+  });
+  STATE.tasks=Object.keys(byId).map(function(k){return byId[k];});
+  if(d.types) STATE.types=Object.assign({},DEFAULT_TYPES,d.types);
+  if(d.cols) STATE.cols=Object.assign({},DEFAULT_COLS,d.cols);
+  saveAll(); renderAll();
+  return {add:add,upd:upd};
 }
 
 /* ================= 数据管理 ================= */
