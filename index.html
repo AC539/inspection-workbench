@@ -1033,24 +1033,33 @@ function updateRouteCount(){
   if(btn) btn.textContent=n?('开始智能排序（已选 '+n+'）'):'开始智能排序';
 }
 function planSelectedRoute(){
-  var ids=Object.keys(STATE.routeSel);
-  if(!ids.length){ toast('请先勾选要检验的任务'); return; }
-  var date=document.getElementById('routeDate').value||todayStr();
-  var sel=STATE.tasks.filter(function(t){return STATE.routeSel[t.id];});
-  var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
-  var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
-  var located=sel.filter(function(t){return t.loc;});
-  var unloc=sel.filter(function(t){return !t.loc;});
-  var cur=startLoc, seq=[], remain=located.slice();
-  while(remain.length){
-    var bi=-1,bd=999;
-    for(var i=0;i<remain.length;i++){ var d=driveMin(cur,remain[i].loc); if(d<bd){bd=d;bi=i;} }
-    seq.push({t:remain[bi],min:bd}); remain.splice(bi,1);
-    cur=seq[seq.length-1].t.loc;
+  try{
+    var ids=Object.keys(STATE.routeSel);
+    if(!ids.length){
+      var res=document.getElementById('routeResult');
+      res.innerHTML='<div style="padding:14px 16px;background:#FFF8E6;border-radius:12px;font-size:13px;color:var(--orange);margin-top:12px;line-height:1.7">⚠️ 还没有勾选任务<br>请先在上方列表里点选要检验的任务（可点区名旁的「全选」整组勾选），再点「开始智能排序」。</div>';
+      res.scrollIntoView({block:'start'});
+      return;
+    }
+    var date=document.getElementById('routeDate').value||todayStr();
+    var sel=STATE.tasks.filter(function(t){return STATE.routeSel[t.id];});
+    var start=DISTRICTS[STATE.set.startDistrict]||{lat:30.674,lng:104.062};
+    var startLoc={lat:start.lat,lng:start.lng,district:STATE.set.startDistrict};
+    var located=sel.filter(function(t){return t.loc;});
+    var unloc=sel.filter(function(t){return !t.loc;});
+    var cur=startLoc, seq=[], remain=located.slice();
+    while(remain.length){
+      var bi=-1,bd=999;
+      for(var i=0;i<remain.length;i++){ var d=driveMin(cur,remain[i].loc); if(d<bd){bd=d;bi=i;} }
+      seq.push({t:remain[bi],min:bd}); remain.splice(bi,1);
+      cur=seq[seq.length-1].t.loc;
+    }
+    unloc.forEach(function(t){ seq.push({t:t,min:null}); });
+    STATE.routeSorted={date:date,seq:seq};
+    renderRouteResult(date,seq);
+  }catch(e){
+    document.getElementById('routeResult').innerHTML='<div style="padding:14px 16px;background:#FFF0EF;border-radius:12px;font-size:13px;color:var(--red);margin-top:12px">排序出错：'+esc(e.message||e)+'</div>';
   }
-  unloc.forEach(function(t){ seq.push({t:t,min:null}); });
-  STATE.routeSorted={date:date,seq:seq};
-  renderRouteResult(date,seq);
 }
 function renderRouteResult(date,seq){
   var html='<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:14px">'
