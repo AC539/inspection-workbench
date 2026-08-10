@@ -853,6 +853,14 @@ function openDay(dateStr){
 }
 
 /* ================= 任务详情/编辑 ================= */
+function navUrl(t){
+  var title=encodeURIComponent((t.title||'').slice(0,20));
+  if(t.loc&&t.loc.lat!=null&&t.loc.lng!=null){
+    return 'https://uri.amap.com/navigation?to='+t.loc.lng+','+t.loc.lat+'&name='+title+'&mode=car&src=workbench';
+  }
+  var kw=encodeURIComponent(t.address||t.title||'');
+  return 'https://uri.amap.com/search?keyword='+kw+'&src=workbench';
+}
 function renderTaskDetailHtml(t){
   var html='<div class="dtl-grid">'
     +'<div class="dtl-item"><div class="k">报检单号</div><div class="v">'+esc(t.reportNo||'—')+'</div></div>'
@@ -861,7 +869,9 @@ function renderTaskDetailHtml(t){
     +(t.projectName?'<div class="dtl-item"><div class="k">项目名称</div><div class="v">'+esc(t.projectName)+'</div></div>':'')
     +(t.maintCo?'<div class="dtl-item"><div class="k">维保单位</div><div class="v">'+esc(t.maintCo)+'</div></div>':'')
     +'<div class="dtl-item"><div class="k">联系人</div><div class="v">'+esc(t.contact||'—')+(t.phone?'<div style="font-size:12px;color:var(--sub);font-weight:400">'+esc(t.phone)+'</div>':'')+'</div></div>'
-    +'<div class="dtl-item"><div class="k">项目地址</div><div class="v">'+esc(t.address||'—')+(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+'</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位</div>')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">项目地址</div><div class="v">'
+    +(t.address?'<a href="'+esc(navUrl(t))+'" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none;display:inline-flex;align-items:center;gap:3px">'+esc(t.address)+' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></a>':'—')
+    +(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+' · 点击地址可高德导航</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位（补全含区名地址后可导航）</div>')+'</div></div>'
     +'<div class="dtl-item"><div class="k">下次检验日期</div><div class="v">'+esc(t.nextCheckDate||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">产品类型</div><div class="v">'+esc(t.productType||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">125时间</div><div class="v">'+esc(t.time125||'—')+'</div></div>'
