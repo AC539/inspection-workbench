@@ -105,6 +105,13 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .sheet{background:var(--bg);width:100%;max-width:640px;max-height:88vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;animation:up .25s cubic-bezier(.2,.8,.3,1)}
 @media(min-width:769px){.mask{align-items:center}.sheet{border-radius:22px;max-height:86vh}}
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* 多层级弹窗（当天详情→任务详情→编辑，层层弹出/缩回） */
+.sheet-layer{position:fixed;inset:0;pointer-events:none}
+.sheet-layer>.mask{display:block;position:absolute;opacity:0;transition:opacity .28s;pointer-events:auto}
+.sheet-layer.open>.mask{opacity:1}
+.sheet-layer>.sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;animation:none;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.3,1);pointer-events:auto;max-height:86vh}
+.sheet-layer.open>.sheet{transform:translateY(0)}
+@media(min-width:769px){.sheet-layer>.sheet{border-radius:22px}}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card);border-radius:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0;flex-shrink:0}
 .sheet-head .st{font-size:17px;font-weight:600;flex:1;min-width:0}
 .sheet-body{padding:18px;overflow-y:auto;overscroll-behavior:contain}
@@ -194,7 +201,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .chk-tag input{display:none}
 .chk-tag.on{background:var(--accSoft);border-color:var(--acc);color:var(--acc);font-weight:500}
 .toast.show{opacity:1}
-.confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:150;display:none;align-items:center;justify-content:center;padding:24px}
+.confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:900;display:none;align-items:center;justify-content:center;padding:24px}
 .confirm-mask.show{display:flex}
 .confirm-box{background:var(--card);border-radius:20px;padding:22px;max-width:360px;width:100%;text-align:center}
 .confirm-box .ct{font-size:16px;font-weight:600;margin-bottom:8px}
@@ -909,8 +916,8 @@ function openTaskForm(idOrDate){
     +'<button class="btn" onclick="saveTask()">保存</button>'
     +'<button class="btn ghost" onclick="closeSheet()">取消</button>'
     +'</div>';
-  openSheet(t?'编辑任务':'添加任务', html);
-  var he=document.getElementById('sheetHeadExtra');
+  var layer=openSheet(t?'编辑任务':'添加任务', html);
+  var he=layer?layer.querySelector('.head-extra'):null;
   if(he) he.innerHTML='<button class="btn sm" onclick="saveTask()">保存</button>';
   if(t&&t.address){ document.getElementById('f_locHint').textContent = t.loc?('已定位：'+t.loc.district):'无法定位（将归入无法确定位置）'; }
   if(t&&t.endDate){
@@ -1694,16 +1701,38 @@ function confirmDelTask(id){
   });
 }
 
-/* ================= 弹层/导航 ================= */
+/* ================= 弹层/导航（多层栈） ================= */
+var SHEET_STACK=[];
 function openSheet(title,body){
-  var extra=document.getElementById('sheetHeadExtra');
-  if(extra) extra.innerHTML='';
-  document.getElementById('sheetTitle').textContent=title;
-  document.getElementById('sheetBody').innerHTML=body;
-  document.getElementById('mask').classList.add('show');
+  var layer=document.createElement('div');
+  layer.className='sheet-layer';
+  layer.style.zIndex=200+SHEET_STACK.length*10;
+  layer.innerHTML='<div class="mask"></div>'
+    +'<div class="sheet"><div class="sheet-head"><span class="st"></span>'
+    +'<div class="head-extra" style="display:flex;gap:8px;align-items:center"></div>'
+    +'<button class="icon-btn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'
+    +'<div class="sheet-body"></div></div>';
+  layer.querySelector('.st').textContent=title;
+  layer.querySelector('.sheet-body').innerHTML=body;
+  var mask=layer.querySelector('.mask');
+  var closeBtn=layer.querySelector('.icon-btn');
+  mask.addEventListener('click',function(e){ if(e.target===this) closeSheet(); });
+  closeBtn.addEventListener('click',function(){ closeSheet(); });
+  document.body.appendChild(layer);
+  SHEET_STACK.push(layer);
   document.body.style.overflow='hidden';
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ layer.classList.add('open'); }); });
+  return layer;
 }
-function closeSheet(){ document.getElementById('mask').classList.remove('show'); document.body.style.overflow=''; }
+function closeSheet(){
+  if(!SHEET_STACK.length) return;
+  var layer=SHEET_STACK.pop();
+  layer.classList.remove('open');
+  setTimeout(function(){
+    layer.remove();
+    if(!SHEET_STACK.length) document.body.style.overflow='';
+  },240);
+}
 function showConfirm(title,desc,fn){
   document.getElementById('cfTitle').textContent=title;
   document.getElementById('cfDesc').textContent=desc;
@@ -1731,7 +1760,6 @@ function switchTab(tab){
   if(tab==='task'){ cal.classList.add('hide'); side.classList.remove('hide'); side.classList.add('show'); tt.classList.add('on'); }
   if(tab==='batch'){ cal.classList.add('hide'); side.classList.remove('show'); side.classList.add('hide'); bv.style.display='block'; STATE.batch=true; STATE.batchSel={}; renderBatchView(); tb.classList.add('on'); }
 }
-document.getElementById('mask').addEventListener('click',function(e){ if(e.target===this) closeSheet(); });
 document.getElementById('confirmMask').addEventListener('click',function(e){ if(e.target===this) closeConfirm(); });
 
 /* ================= 启动 ================= */
