@@ -742,7 +742,7 @@ function renderCalendar(){
         var tag=(t.endDate&&t.endDate!==t.date)?'<span class="ktag">跨</span>':'';
         var sc=statusColor(t.status);
         var fg=fgOn(sc);
-        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openTask(\''+t.id+'\')">'+tag+esc(calLabel(t))+'</div>';
+        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openTask(\''+t.id+'\')">'+tag+'<span style="color:'+typeColor(t.deviceType)+';font-weight:500">'+esc(calLabel(t))+'</span></div>';
       });
       if(list.length>maxShow) tasksHtml+='<div class="cal-more">+'+(list.length-maxShow)+'</div>';
     }
