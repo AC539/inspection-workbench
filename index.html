@@ -495,9 +495,12 @@ function ghApi(method, path, body){
   });
 }
 function uploadCloud(){
-  var token=(STATE.set&&STATE.set.ghToken||'').trim();
-  var repo=(STATE.set&&STATE.set.ghRepo||'').trim();
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名</span>'); return; }
+  var elT=document.getElementById('setGhToken'), elR=document.getElementById('setGhRepo');
+  var token=elT?elT.value.trim():'';
+  var repo=elR?elR.value.trim():'';
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名（填完即可直接上传，无需先点保存）</span>'); return; }
+  STATE.set.ghToken=token; STATE.set.ghRepo=repo;
+  localStorage.setItem(K.set, JSON.stringify(STATE.set));
   ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
   var payload={v:1, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols};
   var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
@@ -513,9 +516,12 @@ function uploadCloud(){
   });
 }
 function downloadCloud(){
-  var token=(STATE.set&&STATE.set.ghToken||'').trim();
-  var repo=(STATE.set&&STATE.set.ghRepo||'').trim();
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名</span>'); return; }
+  var elT=document.getElementById('setGhToken'), elR=document.getElementById('setGhRepo');
+  var token=elT?elT.value.trim():'';
+  var repo=elR?elR.value.trim():'';
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名（填完即可直接下载，无需先点保存）</span>'); return; }
+  STATE.set.ghToken=token; STATE.set.ghRepo=repo;
+  localStorage.setItem(K.set, JSON.stringify(STATE.set));
   ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
   ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(f){
     if(!f||!f.content){ throw new Error('云端还没有数据（先在一台设备点「上传到云端」）'); }
