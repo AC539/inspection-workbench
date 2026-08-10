@@ -342,7 +342,7 @@ var DEFAULT_COLS = {
 };
 var DEFAULT_SETTINGS = {
   startDistrict:'青羊区', speedKmh:25, taskMinutes:90, startTime:'09:00',
-  useMap:false, mapKey:'', syncUrl:'', syncToken:''
+  useMap:false, mapKey:'', syncUrl:'', syncToken:'', ghToken:'', ghRepo:'AC539/inspection-workbench'
 };
 var STATUS = {
   pending:'待安排', scheduled:'已排期', done:'检验完成',
@@ -476,6 +476,59 @@ function syncPush(){
       syncStatus('<span style="color:var(--green)">已同步到服务器 · 版本 '+SYNC.version+'</span>',true);
     }
   }).catch(function(){ syncStatus('<span style="color:var(--red)">同步失败（离线或服务器不可达）</span>',false); });
+}
+
+/* ================= GitHub 云端同步（按需上传/下载） ================= */
+function ghStatus(msg,ok){
+  var el=document.getElementById('ghStatus');
+  if(el) el.innerHTML=msg;
+}
+function ghApi(method, path, body){
+  var token=(STATE.set&&STATE.set.ghToken||'').trim();
+  if(!token) return Promise.reject(new Error('请先填写 GitHub Token'));
+  var opts={method:method, headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}};
+  if(body!==undefined){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  return fetch('https://api.github.com'+path, opts).then(function(r){
+    if(r.status===404) return null;
+    if(!r.ok) return r.json().then(function(d){ throw new Error('GitHub '+r.status+(d&&d.message?': '+d.message:'')); });
+    return r.json();
+  });
+}
+function uploadCloud(){
+  var token=(STATE.set&&STATE.set.ghToken||'').trim();
+  var repo=(STATE.set&&STATE.set.ghRepo||'').trim();
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名</span>'); return; }
+  ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
+  var payload={v:1, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols};
+  var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
+    var body={message:'工作台云端同步上传', content:b64, branch:'main'};
+    if(existing&&existing.sha) body.sha=existing.sha;
+    return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
+  }).then(function(){
+    ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务到云端 ✓</span>');
+    toast('已上传到云端');
+  }).catch(function(e){
+    ghStatus('<span style="color:var(--red)">上传失败：'+esc(e.message||e)+'</span>');
+  });
+}
+function downloadCloud(){
+  var token=(STATE.set&&STATE.set.ghToken||'').trim();
+  var repo=(STATE.set&&STATE.set.ghRepo||'').trim();
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名</span>'); return; }
+  ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
+  ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(f){
+    if(!f||!f.content){ throw new Error('云端还没有数据（先在一台设备点「上传到云端」）'); }
+    var raw=f.content.replace(/\n/g,'');
+    var s=decodeURIComponent(escape(atob(raw)));
+    var d=JSON.parse(s);
+    if(!d||!Array.isArray(d.tasks)) throw new Error('云端数据格式异常');
+    var r=mergeIncoming(d);
+    ghStatus('<span style="color:var(--green)">下载完成：新增 '+r.add+' 条，更新 '+r.upd+' 条，共 '+STATE.tasks.length+' 条 ✓</span>');
+    toast('已从云端合并数据');
+  }).catch(function(e){
+    ghStatus('<span style="color:var(--red)">下载失败：'+esc(e.message||e)+'</span>');
+  });
 }
 
 /* ================= 工具 ================= */
@@ -1392,6 +1445,17 @@ function openSettings(){
     +'<input type="text" id="setMapKey" value="'+esc(STATE.set.mapKey)+'" placeholder="申请：https://console.amap.com">'
     +'<div class="hint">免费申请（个人开发者有每日免费额度）。填入后顺路编排使用真实驾车时间；未填或请求失败时自动退回离线估算。</div></div>'
     +'</div>';
+  html+='<div class="set-group"><h4>GitHub 云端同步（电脑↔手机，按需）</h4>'
+    +'<div class="frow"><label>GitHub Token</label>'
+    +'<input type="password" id="setGhToken" value="'+esc(STATE.set.ghToken)+'" placeholder="ghp_ 或 github_pat_ 开头">'
+    +'<div class="hint">建议用「细粒度令牌」(Settings→Developer settings→Fine-grained tokens)，只授权本仓库的 Contents 读写。令牌只存在本机浏览器。</div></div>'
+    +'<div class="frow"><label>仓库</label>'
+    +'<input type="text" id="setGhRepo" value="'+esc(STATE.set.ghRepo||'AC539/inspection-workbench')+'" placeholder="用户名/仓库名">'
+    +'<div class="hint">数据存在该仓库的 data.json 文件。公开仓库时数据公开可访问（含公司/地址/电话等，请注意）；如需私密可新建私有仓库填到这里。</div></div>'
+    +'<div class="form-actions"><button class="btn" style="flex:1" onclick="uploadCloud()">上传到云端</button>'
+    +'<button class="btn ghost" style="flex:1" onclick="downloadCloud()">从云端下载合并</button></div>'
+    +'<div id="ghStatus" style="font-size:12px;color:var(--sub);margin-top:8px"></div>'
+    +'</div>';
   html+='<div class="set-group"><h4>多人实时同步</h4>'
     +'<div class="frow"><label>同步服务器地址</label>'
     +'<input type="text" id="setSyncUrl" value="'+esc(STATE.set.syncUrl)+'" placeholder="如 http://123.45.67.89:8080">'
@@ -1445,6 +1509,10 @@ function saveSettings(){
   STATE.set.mapKey=document.getElementById('setMapKey').value.trim();
   STATE.set.syncUrl=document.getElementById('setSyncUrl').value.trim();
   STATE.set.syncToken=document.getElementById('setSyncToken').value.trim();
+  if(document.getElementById('setGhToken')){
+    STATE.set.ghToken=document.getElementById('setGhToken').value.trim();
+    STATE.set.ghRepo=document.getElementById('setGhRepo').value.trim()||'AC539/inspection-workbench';
+  }
   saveAll(); renderAll(); closeSheet();
   syncStart();
   toast('设置已保存'+(STATE.set.syncUrl?'，正在连接同步服务器…':''));
