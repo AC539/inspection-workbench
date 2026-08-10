@@ -219,8 +219,8 @@ button{cursor:pointer;border:none;background:none;color:inherit}
       <div class="badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></div>
       检验工作台
     </div>
-    <button class="icon-btn" title="导出备份" onclick="exportJSON()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
-    <button class="icon-btn" title="导入恢复" onclick="document.getElementById('impFile').click()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L8 7m4-4l4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+    <button class="icon-btn" title="上传到云端" onclick="uploadCloud()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 16a4 4 0 0 0 0-8 6 6 0 0 0-11.4 1.6A3.5 3.5 0 0 0 7 17h4m3-6v7m0 0l-3-3m3 3l3-3"/></svg></button>
+    <button class="icon-btn" title="从云端下载合并" onclick="downloadCloud()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 16a4 4 0 0 0 0-8 6 6 0 0 0-11.4 1.6A3.5 3.5 0 0 0 7 17h4m3-7v7m0 0l-3-3m3 3l3-3"/></svg></button>
     <button class="icon-btn" title="手机/电脑数据互通" onclick="openTransfer()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h12M16 4l3 3-3 3M20 17H8M8 14l-3 3 3 3"/></svg></button>
     <button class="icon-btn" title="设置" onclick="openSettings()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56h.08a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg></button>
     <input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(this)">
@@ -505,11 +505,18 @@ function ghApi(method, path, body){
     return r.json();
   });
 }
-function uploadCloud(){
+function ghCreds(){
   var elT=document.getElementById('setGhToken'), elR=document.getElementById('setGhRepo');
   var token=elT?elT.value.trim():'';
   var repo=elR?elR.value.trim():'';
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名（填完即可直接上传，无需先点保存）</span>'); return; }
+  if(!token) token=(STATE.set&&STATE.set.ghToken||'').trim();
+  if(!repo) repo=(STATE.set&&STATE.set.ghRepo||'').trim();
+  return {token:token, repo:repo};
+}
+function uploadCloud(){
+  var c=ghCreds();
+  var token=c.token, repo=c.repo;
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
   STATE.set.ghToken=token; STATE.set.ghRepo=repo;
   localStorage.setItem(K.set, JSON.stringify(STATE.set));
   ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
@@ -527,10 +534,9 @@ function uploadCloud(){
   });
 }
 function downloadCloud(){
-  var elT=document.getElementById('setGhToken'), elR=document.getElementById('setGhRepo');
-  var token=elT?elT.value.trim():'';
-  var repo=elR?elR.value.trim():'';
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在上方填写 Token 和仓库名（填完即可直接下载，无需先点保存）</span>'); return; }
+  var c=ghCreds();
+  var token=c.token, repo=c.repo;
+  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
   STATE.set.ghToken=token; STATE.set.ghRepo=repo;
   localStorage.setItem(K.set, JSON.stringify(STATE.set));
   ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
