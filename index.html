@@ -309,6 +309,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   <div class="sheet">
     <div class="sheet-head">
       <span class="st" id="sheetTitle"></span>
+      <div id="sheetHeadExtra" style="display:flex;gap:8px;align-items:center"></div>
       <button class="icon-btn" onclick="closeSheet()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </div>
     <div class="sheet-body" id="sheetBody"></div>
@@ -909,6 +910,8 @@ function openTaskForm(idOrDate){
     +'<button class="btn ghost" onclick="closeSheet()">取消</button>'
     +'</div>';
   openSheet(t?'编辑任务':'添加任务', html);
+  var he=document.getElementById('sheetHeadExtra');
+  if(he) he.innerHTML='<button class="btn sm" onclick="saveTask()">保存</button>';
   if(t&&t.address){ document.getElementById('f_locHint').textContent = t.loc?('已定位：'+t.loc.district):'无法定位（将归入无法确定位置）'; }
   if(t&&t.endDate){
     document.getElementById('rangeEndWrap').style.display='block';
@@ -1693,6 +1696,8 @@ function confirmDelTask(id){
 
 /* ================= 弹层/导航 ================= */
 function openSheet(title,body){
+  var extra=document.getElementById('sheetHeadExtra');
+  if(extra) extra.innerHTML='';
   document.getElementById('sheetTitle').textContent=title;
   document.getElementById('sheetBody').innerHTML=body;
   document.getElementById('mask').classList.add('show');
