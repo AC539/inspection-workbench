@@ -866,7 +866,7 @@ function navScheme(t){
   var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   var isAdr=/android/i.test(navigator.userAgent);
   var kw=navKeywords(t);
-  if(isIOS) return 'iosamap://poi?sourceApplication=workbench&keywords='+kw;
+  if(isIOS) return 'https://uri.amap.com/search?keyword='+kw+'&callnative=1&src=workbench';
   if(isAdr) return 'androidamap://poi?sourceApplication=workbench&keywords='+kw;
   return navWebUrl(t);
 }
