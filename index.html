@@ -107,9 +107,9 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 @keyframes up{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
 /* 多层级弹窗（当天详情→任务详情→编辑，层层弹出/缩回） */
 .sheet-layer{position:fixed;inset:0;pointer-events:none}
-.sheet-layer>.mask{display:block;position:absolute;opacity:0;transition:opacity .28s;pointer-events:auto}
+.sheet-layer>.mask{display:block;position:absolute;inset:0;z-index:0;opacity:0;transition:opacity .28s;pointer-events:auto}
 .sheet-layer.open>.mask{opacity:1}
-.sheet-layer>.sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;animation:none;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.3,1);pointer-events:auto;max-height:86vh}
+.sheet-layer>.sheet{position:absolute;left:0;right:0;bottom:0;margin:0 auto;z-index:1;animation:none;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.3,1);pointer-events:auto;max-height:86vh}
 .sheet-layer.open>.sheet{transform:translateY(0)}
 @media(min-width:769px){.sheet-layer>.sheet{border-radius:22px}}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card);border-radius:inherit;border-bottom-left-radius:0;border-bottom-right-radius:0;flex-shrink:0}
