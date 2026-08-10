@@ -853,23 +853,19 @@ function openDay(dateStr){
 }
 
 /* ================= 任务详情/编辑 ================= */
+function navKeywords(t){
+  var parts=[];
+  if(t.title) parts.push(t.title);
+  if(t.address) parts.push(t.address);
+  return encodeURIComponent(parts.join(' '));
+}
 function navWebUrl(t){
-  var title=encodeURIComponent((t.title||'').slice(0,20));
-  if(t.loc&&t.loc.lat!=null&&t.loc.lng!=null){
-    return 'https://uri.amap.com/navigation?to='+t.loc.lng+','+t.loc.lat+'&name='+title+'&mode=car&src=workbench';
-  }
-  var kw=encodeURIComponent(t.address||t.title||'');
-  return 'https://uri.amap.com/search?keyword='+kw+'&src=workbench';
+  return 'https://uri.amap.com/search?keyword='+navKeywords(t)+'&src=workbench';
 }
 function navScheme(t){
   var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   var isAdr=/android/i.test(navigator.userAgent);
-  var name=encodeURIComponent((t.title||'').slice(0,20));
-  if(t.loc&&t.loc.lat!=null&&t.loc.lng!=null){
-    if(isIOS) return 'iosamap://navi?sourceApplication=workbench&lat='+t.loc.lat+'&lon='+t.loc.lng+'&poiname='+name+'&style=2';
-    if(isAdr) return 'androidamap://navi?sourceApplication=workbench&lat='+t.loc.lat+'&lon='+t.loc.lng+'&poiname='+name+'&style=2';
-  }
-  var kw=encodeURIComponent(t.address||t.title||'');
+  var kw=navKeywords(t);
   if(isIOS) return 'iosamap://poi?sourceApplication=workbench&keywords='+kw;
   if(isAdr) return 'androidamap://poi?sourceApplication=workbench&keywords='+kw;
   return navWebUrl(t);
@@ -885,7 +881,7 @@ function renderTaskDetailHtml(t){
     +'<div class="dtl-item"><div class="k">项目地址</div><div class="v">'
     +(t.address?'<a href="'+esc(navScheme(t))+'" style="color:var(--acc);text-decoration:none;display:inline-flex;align-items:center;gap:3px">'+esc(t.address)+' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></a>':'—')
     +(t.address?'<a href="'+esc(navWebUrl(t))+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--hint);text-decoration:underline;margin-left:6px">网页版</a>':'')
-    +(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+' · 点击地址唤起高德 App</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位（补全含区名地址后可导航）</div>')+'</div></div>'
+    +(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+' · 点击地址在高德搜索该项目</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位（补全含区名地址后可搜索）</div>')+'</div></div>'
     +'<div class="dtl-item"><div class="k">下次检验日期</div><div class="v">'+esc(t.nextCheckDate||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">产品类型</div><div class="v">'+esc(t.productType||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">125时间</div><div class="v">'+esc(t.time125||'—')+'</div></div>'
