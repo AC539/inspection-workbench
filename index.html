@@ -190,6 +190,9 @@ button{cursor:pointer;border:none;background:none;color:inherit}
   .frow .row2{grid-template-columns:1fr}
 }
 .toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(29,29,31,.92);color:#fff;font-size:14px;padding:10px 20px;border-radius:999px;z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;max-width:86vw;text-align:center}
+.chk-tag{display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border:1px solid var(--line2);border-radius:999px;font-size:13px;color:var(--sub);cursor:pointer;user-select:none;background:var(--card)}
+.chk-tag input{display:none}
+.chk-tag.on{background:var(--accSoft);border-color:var(--acc);color:var(--acc);font-weight:500}
 .toast.show{opacity:1}
 .confirm-mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:150;display:none;align-items:center;justify-content:center;padding:24px}
 .confirm-mask.show{display:flex}
@@ -557,6 +560,29 @@ function taskTitle(t){
   return title+dt+cnt+pos;
 }
 function typeColor(type){return STATE.types[type]||'#1D1D1F';}
+var PROD_TAGS=['超15年','蓄能','曳引','液压','杂物','自动扶梯','自动人行道','医用','防爆','无机房','其他'];
+function prodTagsHtml(sel){
+  var s=String(sel||'');
+  var html='';
+  PROD_TAGS.forEach(function(tag){
+    var on=s.indexOf(tag)>=0;
+    html+='<label class="chk-tag'+(on?' on':'')+'"><input type="checkbox" value="'+esc(tag)+'"'+(on?' checked':'')+' onchange="toggleProdTag(this)">'+esc(tag)+'</label>';
+  });
+  if(s&&!PROD_TAGS.some(function(t){return s.indexOf(t)>=0;})){
+    html+='<label class="chk-tag on"><input type="checkbox" value="'+esc(s)+'" checked onchange="toggleProdTag(this)">'+esc(s)+'</label>';
+  }
+  return html;
+}
+function toggleProdTag(cb){
+  var lb=cb.closest('label');
+  if(lb) lb.classList.toggle('on',cb.checked);
+}
+function readProdTags(){
+  var els=document.querySelectorAll('#f_prodTags input:checked');
+  var out='';
+  els.forEach(function(cb){ out+=cb.value; });
+  return out;
+}
 function statusColor(st){return STATE.cols[st]||'#8E8E93';}
 function hexA(hex,a){
   var h=String(hex||'').replace('#','');
@@ -742,7 +768,7 @@ function renderCalendar(){
         var tag=(t.endDate&&t.endDate!==t.date)?'<span class="ktag">跨</span>':'';
         var sc=statusColor(t.status);
         var fg=fgOn(sc);
-        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openTask(\''+t.id+'\')">'+tag+'<span style="color:'+typeColor(t.deviceType)+';font-weight:500">'+esc(calLabel(t))+'</span></div>';
+        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openDay(\''+c.date+'\')">'+tag+'<span style="color:'+typeColor(t.deviceType)+';font-weight:500">'+esc(calLabel(t))+'</span></div>';
       });
       if(list.length>maxShow) tasksHtml+='<div class="cal-more">+'+(list.length-maxShow)+'</div>';
     }
@@ -853,9 +879,6 @@ function openTaskForm(idOrDate){
     typeOptions+='<option value="'+esc(k)+'"'+(t&&t.deviceType===k?' selected':'')+'>'+esc(k)+'</option>';
   });
   typeOptions+='<option value="__new">+ 新建类别…</option>';
-  var prodOptions=['蓄能电梯','耗能电梯','超15年电梯','机械式停车设备','其他'].map(function(p){
-    return '<option value="'+esc(p)+'"'+(t&&t.productType===p?' selected':'')+'>'+esc(p)+'</option>';
-  }).join('');
   var statusOptions='';
   Object.keys(STATUS).forEach(function(k){
     statusOptions+='<option value="'+k+'"'+(t&&t.status===k?' selected':'')+'>'+STATUS[k]+'</option>';
@@ -876,8 +899,8 @@ function openTaskForm(idOrDate){
     +'<div class="hint" id="f_locHint"></div></div>'
     +'<div class="frow row2"><div><label>联系人</label><input type="text" id="f_contact" value="'+esc(t?t.contact:'')+'"></div>'
     +'<div><label>联系电话</label><input type="tel" id="f_phone" value="'+esc(t?t.phone:'')+'"></div></div>'
-    +'<div class="frow row3"><div><label>产品类型</label><select id="f_product"><option value="">不适用</option>'+prodOptions+'</select></div>'
-    +'<div><label>125时间</label><input type="text" id="f_time125" value="'+esc(t?t.time125:'')+'" placeholder="如：2026-08-12 14:30"></div>'
+    +'<div class="frow"><label>产品类型（可多选组合）</label><div id="f_prodTags" style="display:flex;flex-wrap:wrap;gap:6px">'+prodTagsHtml(t?t.productType:'')+'</div></div>'
+    +'<div class="frow row2"><div><label>125时间</label><input type="text" id="f_time125" value="'+esc(t?t.time125:'')+'" placeholder="如：2026-08-12 14:30"></div>'
     +'<div><label>下次检验日期</label><input type="date" id="f_next" value="'+esc(t?t.nextCheckDate||'':'')+'"></div></div>'
     +'<div class="frow"><label>备注</label><textarea id="f_note" placeholder="延期记录、现场情况等都会记在这里">'+esc(t?t.note:'')+'</textarea></div>'
     +'<div class="frow"><label>当前阶段</label><select id="f_status">'+statusOptions+'</select></div>'
@@ -934,7 +957,7 @@ function saveTask(){
     address:document.getElementById('f_address').value.trim(),
     contact:document.getElementById('f_contact').value.trim(),
     phone:document.getElementById('f_phone').value.trim(),
-    productType:document.getElementById('f_product').value,
+    productType:readProdTags(),
     time125:document.getElementById('f_time125').value.trim(),
     nextCheckDate:document.getElementById('f_next').value,
     note:document.getElementById('f_note').value.trim(),
