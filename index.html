@@ -399,13 +399,19 @@ function mergeTaskObj(a,b){
   var newer=(b.updatedAt||0)>=(a.updatedAt||0)?b:a;
   var older=newer===b?a:b;
   var out={};
+  var clearedAll=(a._cleared||[]).concat(b._cleared||[]);
   Object.keys(newer).forEach(function(k){ out[k]=newer[k]; });
   Object.keys(older).forEach(function(k){
+    if(k==='_cleared') return;
     var v=older[k];
     if(v==null||v===''||(Array.isArray(v)&&!v.length)) return;
     var ov=out[k];
-    if(ov==null||ov===''||(Array.isArray(ov)&&!ov.length)) out[k]=v;
+    if(ov==null||ov===''||(Array.isArray(ov)&&!ov.length)){
+      if(clearedAll.indexOf(k)>=0) return; // 该字段曾被主动清空（如取消安排），不再用旧数据补回
+      out[k]=v;
+    }
   });
+  if(clearedAll.length) out._cleared=Array.from(new Set(clearedAll));
   return out;
 }
 function syncHeaders(){
@@ -1016,6 +1022,12 @@ function saveTask(){
   d.loc=resolveLoc(d.address);
   if(STATE.editingId){
     var t=STATE.tasks.find(function(x){return x.id===STATE.editingId;});
+    var cleared=[];
+    Object.keys(d).forEach(function(k){
+      var ov=t[k];
+      if(ov!=null&&ov!==''&&(d[k]==null||d[k]==='')) cleared.push(k);
+    });
+    if(cleared.length) t._cleared=Array.from(new Set((t._cleared||[]).concat(cleared)));
     Object.keys(d).forEach(function(k){ t[k]=d[k]; });
     toast('已保存');
   }else{
@@ -1041,6 +1053,7 @@ function postponeTask(id){
     t.postponedDates.push((t.endDate&&t.endDate!==t.date?t.date+'~'+t.endDate:t.date)+' '+t.time+' → 延期');
     t.postponeCount=(t.postponeCount||0)+1;
     t.date=''; t.time=''; t.endDate=''; t.status='pending';
+    t._cleared=Array.from(new Set((t._cleared||[]).concat(['date','time','endDate','status'])));
     saveAll(); renderAll(); closeSheet();
   refreshTopLayer();
     toast('已延期，回到待安排');
@@ -1050,6 +1063,7 @@ function cancelSchedule(id){
   var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
   showConfirm('取消安排？','「'+taskTitle(t)+'」将回到待安排，排期日期与时间会被清空。', function(){
     t.status='pending'; t.date=''; t.time=''; t.endDate='';
+    t._cleared=Array.from(new Set((t._cleared||[]).concat(['date','time','endDate','status'])));
     saveAll(); renderAll(); closeSheet();
   refreshTopLayer();
     toast('已取消安排，回到待安排');
