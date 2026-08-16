@@ -895,7 +895,7 @@ function renderTaskDetailHtml(t){
     +'<div class="dtl-item"><div class="k">具体时间</div><div class="v">'+(t.time?esc(t.time):'—')+'</div></div>'
     +'</div>';
   html+='<div class="pstripe"><span class="bar" style="background:'+statusColor(t.status)+'"></span><span style="font-size:13px;font-weight:500;color:'+statusColor(t.status)+'">'+STATUS[t.status]+'</span><span style="font-size:12px;color:var(--hint)">（色条=阶段，字色=设备类别）</span></div>';
-  if(t.note) html+='<div style="background:var(--bg);border-radius:12px;padding:12px;font-size:13px;color:var(--sub);margin-bottom:12px"><b style="color:var(--txt)">备注</b><br>'+esc(t.note)+'</div>';
+  if(t.note) html+='<div style="margin-bottom:12px"><label style="font-size:13px;font-weight:600;color:var(--txt);display:block;margin-bottom:6px">备注</label><div style="background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.7;color:var(--txt);white-space:pre-wrap;word-break:break-word">'+esc(t.note)+'</div></div>';
   if(t.postponedDates&&t.postponedDates.length){
     html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
   }
@@ -955,7 +955,7 @@ function openTaskForm(idOrDate){
     +'<div class="frow"><label>产品类型（可多选组合）</label><div id="f_prodTags" style="display:flex;flex-wrap:wrap;gap:6px">'+prodTagsHtml(t?t.productType:'')+'</div></div>'
     +'<div class="frow row2"><div><label>125时间</label><input type="text" id="f_time125" value="'+esc(t?t.time125:'')+'" placeholder="如：2026-08-12 14:30"></div>'
     +'<div><label>下次检验日期</label><input type="date" id="f_next" value="'+esc(t?t.nextCheckDate||'':'')+'"></div></div>'
-    +'<div class="frow"><label>备注</label><textarea id="f_note" placeholder="延期记录、现场情况等都会记在这里">'+esc(t?t.note:'')+'</textarea></div>'
+    +'<div class="frow"><label>备注</label><textarea id="f_note" style="min-height:320px" placeholder="延期记录、现场情况等都会记在这里">'+esc(t?t.note:'')+'</textarea></div>'
     +'<div class="frow"><label>当前阶段</label><select id="f_status">'+statusOptions+'</select></div>'
     +'<div class="form-actions">'
     +'<button class="btn" onclick="saveTask()">保存</button>'
