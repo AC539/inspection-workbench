@@ -1160,37 +1160,64 @@ function closeRouteView(){
   renderSide();
 }
 function renderRouteView(){
-  var html='<div style="font-size:13px;color:var(--sub);margin-bottom:10px">起点：<b style="color:var(--txt)">'+esc(STATE.set.startDistrict)+'</b>（设置中可改）· 待安排任务已按区县自动分类</div>'
+  var html='<div style="font-size:13px;color:var(--sub);margin-bottom:10px">起点：<b style="color:var(--txt)">'+esc(STATE.set.startDistrict)+'</b>（设置中可改）· 已按地理位置自动分组（开车 ≤10 分钟为邻近）</div>'
     +'<div class="frow" style="margin-bottom:4px"><label>安排到哪一天</label>'
     +'<input type="date" id="routeDate" value="'+esc(STATE.routeDate)+'" style="width:100%;min-height:46px;border:1px solid var(--line2);border-radius:12px;padding:0 12px;background:var(--card)"></div>'
     +'<div id="routeList"></div>';
   document.getElementById('routeBody').innerHTML=html;
   renderRouteBody();
 }
-function renderRouteBody(){
-  var groups={}, unloc=[];
+var ROUTE_CLUSTER_MIN=10;
+function clusterMin(a,b){
+  if(!a||!b||a.lat==null||a.lng==null||b.lat==null||b.lng==null) return 99;
+  var sp=STATE.set.speedKmh||25;
+  var km=haversine(a.lat,a.lng,b.lat,b.lng)*1.4;
+  return Math.max(1, Math.round(km/(sp/60)));
+}
+function clusterRoute(){
+  var groups=[];
   STATE.tasks.forEach(function(t){
     if(t.status!=='pending') return;
-    if(t.loc&&t.loc.district){ (groups[t.loc.district]=groups[t.loc.district]||[]).push(t); }
-    else unloc.push(t);
+    if(!t.loc||t.loc.lat==null){
+      var ug=null;
+      for(var i=0;i<groups.length;i++) if(groups[i].unloc){ ug=groups[i]; break; }
+      if(!ug){ ug={unloc:true, items:[]}; groups.push(ug); }
+      ug.items.push(t); return;
+    }
+    var target=null;
+    for(var i=0;i<groups.length;i++){
+      var g=groups[i];
+      if(g.unloc) continue;
+      for(var j=0;j<g.items.length;j++){
+        if(clusterMin(t.loc, g.items[j].loc)<=ROUTE_CLUSTER_MIN){ target=g; break; }
+      }
+      if(target) break;
+    }
+    if(target) target.items.push(t);
+    else groups.push({rep:t, items:[t]});
   });
+  return groups;
+}
+function renderRouteBody(){
+  var groups=clusterRoute();
   var html='';
-  var gkeys=Object.keys(groups).sort();
-  gkeys.forEach(function(g){
-    var allOn=groups[g].every(function(t){return STATE.routeSel[t.id];});
+  groups.forEach(function(g){
+    if(g.unloc){
+      html+='<div style="margin-top:12px"><div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:6px">无法定位 '+g.items.length+' 项（排序时放最后）</div>';
+      g.items.forEach(function(t){ html+=routeTaskItem(t); });
+      html+='</div>';
+      return;
+    }
+    var allOn=g.items.every(function(t){return STATE.routeSel[t.id];});
+    var label=(g.rep.loc&&g.rep.loc.district?g.rep.loc.district:'附近')+' · 邻近组';
     html+='<div style="margin-top:12px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +'<span style="font-size:13px;font-weight:600;color:var(--sub)">'+esc(g)+' <span style="color:var(--hint);font-weight:400">'+groups[g].length+' 项</span></span>'
-      +'<button class="btn sm ghost" onclick="groupToggle(\''+esc(g)+'\')">'+(allOn?'取消全选':'全选')+'</button></div>';
-    groups[g].forEach(function(t){ html+=routeTaskItem(t); });
+      +'<span style="font-size:13px;font-weight:600;color:var(--sub)">'+esc(label)+' <span style="color:var(--hint);font-weight:400">'+g.items.length+' 项 · 车程≤10分钟</span></span>'
+      +'<button class="btn sm ghost" onclick="groupToggle(\''+g.rep.id+'\')">'+(allOn?'取消全选':'全选')+'</button></div>';
+    g.items.forEach(function(t){ html+=routeTaskItem(t); });
     html+='</div>';
   });
-  if(unloc.length){
-    html+='<div style="margin-top:12px"><div style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:6px">无法定位 '+unloc.length+' 项（排序时放最后）</div>';
-    unloc.forEach(function(t){ html+=routeTaskItem(t); });
-    html+='</div>';
-  }
-  if(!gkeys.length&&!unloc.length) html='<div class="empty">没有待安排任务</div>';
+  if(!groups.length) html='<div class="empty">没有待安排任务</div>';
   var list=document.getElementById('routeList');
   if(list) list.innerHTML=html;
   updateRouteCount();
@@ -1208,10 +1235,14 @@ function toggleRouteSel(id){
   else STATE.routeSel[id]=1;
   refreshRoute();
 }
-function groupToggle(g){
-  var gTasks=STATE.tasks.filter(function(t){return t.status==='pending'&&t.loc&&t.loc.district===g;});
-  var allOn=gTasks.every(function(t){return STATE.routeSel[t.id];});
-  gTasks.forEach(function(t){ if(allOn) delete STATE.routeSel[t.id]; else STATE.routeSel[t.id]=1; });
+function groupToggle(repId){
+  var groups=clusterRoute();
+  var g=null;
+  if(repId==='__unloc'){ g=groups.find(function(x){return x.unloc;}); }
+  else{ g=groups.find(function(x){return x.rep&&x.rep.id===repId;}); }
+  if(!g) return;
+  var allOn=g.items.every(function(t){return STATE.routeSel[t.id];});
+  g.items.forEach(function(t){ if(allOn) delete STATE.routeSel[t.id]; else STATE.routeSel[t.id]=1; });
   refreshRoute();
 }
 function refreshRoute(){
