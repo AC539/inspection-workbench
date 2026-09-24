@@ -673,7 +673,7 @@ function extractCompany(t){
   return s.split(/\s+/)[0]||'';
 }
 function parseSms(text){
-  var t=text||'', r={company:'',reportNo:'',count:1,address:'',contact:'',phone:'',nextDate:'',deviceType:'',inspectType:'定期检验',projectName:'',maintCo:''};
+  var t=text||'', r={company:'',reportNo:'',count:1,address:'',contact:'',phone:'',nextDate:'',deviceType:'',inspectType:'定期检验',projectName:'',maintCo:'',area:''};
   var m;
   r.company=extractCompany(t);
   m=t.match(/报检单号(?:为)?\s*([A-Za-z0-9]+)/); if(m) r.reportNo=m[1];
@@ -683,29 +683,124 @@ function parseSms(text){
   m=t.match(/下次检验日期\s*[（(]?\s*(\d{4}-\d{2}-\d{2})/); if(m) r.nextDate=m[1];
   m=t.match(/[（(](电梯|叉车|起重机|场[厂（(]?车|锅炉|压力容器|机械式停车设备)[)）]/); var dev=m?m[1]:'';
   m=t.match(/(安装监督检验|监督检验|定期检验|委托检验)/); if(m) r.inspectType=m[1];
-  if(dev){
-    r.deviceType=dev+r.inspectType;
-  }
+  m=t.match(/(?:设备所属区域|设备所在区域|所属区域|区域)[:：]?\s*([\u4e00-\u9fa5]{2,10}(?:市|区|县))/); if(m) r.area=m[1];
+  if(dev) r.deviceType=matchDeviceType(normDevice(dev),normInspect(r.inspectType));
+  if(!r.area&&r.address) r.area=guessArea(r.address);
+  if(!r.contact){ m=t.match(/(?:检验现场联系人|现场联系人|联系人)[:：为]?\s*([\u4e00-\u9fa5]{2,4})/); if(m) r.contact=m[1]; }
+  if(!r.phone){ m=t.match(/(?:检验现场联系电话|联系电话|手机)[:：为]?\s*(1[3-9]\d{9})/); if(m) r.phone=m[1]; }
   return r;
 }
-/* 综合检验系统「键值对」格式解析（复制自系统页面） */
-function fieldValue(t,key){
+/* 综合检验系统「键值对」格式解析（复制自系统页面）
+   兼容两种排版：①标签与值同一行「使用单位：成都XX」②标签独占一行、值在下一行
+   关键修正：值为空时（下一行是另一个标签），不能把下一行的标签名当成值 */
+var FORM_KEYS=['报检单号','检验现场联系电话','施工单位联系人','施工联系人电话','申请联系电话','联系人电话',
+  '检验现场联系人','使用单位备注','设备所属区域','设备所在区域','设备所在地址','设备地址','设备数量',
+  '设备类型','设备类别','设备品种','检验类型','检验类别','检验性质','使用单位','申请单位','单位名称',
+  '项目名称','工程名称','维保单位','维护保养单位','制造单位','施工单位','联系人','申请人','施工类别',
+  '地铁线路','BRT线路','高铁线路','登记机关','所属区域','所在区域'];
+function fieldValue(t,key){ /* 旧版单行取值，保留兼容 */
   var re=new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*[:：]\\s*\\n?\\s*([^\\n\\t]+)');
   var m=t.match(re);
   return m?m[1].trim():'';
 }
+function splitLabel(line){
+  var m=String(line||'').match(/^([^:：]{1,40})\s*[:：]\s*([\s\S]*)$/);
+  if(!m) return null;
+  var k=m[1].trim();
+  if(k.length<2) return null;
+  if(!/[\u4e00-\u9fa5A-Za-z]/.test(k)) return null;   /* 排除 09:00 这类时间值 */
+  return {key:k, val:m[2].trim()};
+}
+/* 逐行切分「标签：值」，标签行的值为空时不会吃掉下一行的标签 */
+function parseFormFields(text){
+  var lines=String(text||'').replace(/\r/g,'').split('\n').map(function(s){return s.trim();});
+  var out={};
+  for(var i=0;i<lines.length;i++){
+    var L=lines[i];
+    if(!L) continue;
+    var a=splitLabel(L);
+    if(!a) continue;
+    var val=a.val;
+    if(val===''){
+      var j=i+1;
+      while(j<lines.length&&!lines[j]) j++;
+      if(j<lines.length){
+        var nb=splitLabel(lines[j]);
+        var nbIsLabel = nb && (nb.val==='' || FORM_KEYS.indexOf(nb.key)>=0);
+        if(!nbIsLabel){ val=lines[j]; i=j; }   /* 下一行不是标签 → 就是本字段的值 */
+      }
+    }
+    if(out[a.key]===undefined) out[a.key]=val;
+  }
+  return out;
+}
+function fPick(f,keys){
+  for(var i=0;i<keys.length;i++){ var v=f[keys[i]]; if(v) return String(v).trim(); }
+  return '';
+}
+/* 设备类型归一化：系统写「起重机械」，软件类别叫「起重机定期检验」 */
+var DEV_NORM=[
+  [/起重|吊车|吊机/, '起重机'],
+  [/叉车|场[（(]?厂[)）]?内|机动工业车辆|观光车/, '叉车'],
+  [/电梯|扶梯|自动人行道|升降机/, '电梯'],
+  [/锅炉/, '锅炉'],
+  [/气瓶|压力容器/, '压力容器'],
+  [/管道/, '压力管道'],
+  [/游乐/, '大型游乐设施'],
+  [/索道/, '客运索道'],
+  [/停车/, '机械式停车设备']
+];
+function normDevice(dev){
+  var s=String(dev||'').trim();
+  if(!s) return '';
+  for(var i=0;i<DEV_NORM.length;i++) if(DEV_NORM[i][0].test(s)) return DEV_NORM[i][1];
+  return s;
+}
+function normInspect(s){
+  s=String(s||'').trim();
+  if(!s) return '定期检验';
+  if(/安装/.test(s)&&/监督/.test(s)) return '安装监督检验';
+  if(/监督/.test(s)) return '监督检验';
+  if(/定期/.test(s)) return '定期检验';
+  if(/委托/.test(s)) return '委托检验';
+  return s;
+}
+/* 归一化后的「起重机+定期检验」去匹配已有类别名，命中「起重机定期检验」→ 颜色/识别都对 */
+function matchDeviceType(base,it){
+  if(!base) return '';
+  var keys=Object.keys(STATE.types||{});
+  var want=base+it;
+  if(keys.indexOf(want)>=0) return want;
+  for(var i=0;i<keys.length;i++){
+    if(keys[i].indexOf(base)===0&&keys[i].indexOf(it)>=0) return keys[i];
+  }
+  return want;
+}
+/* 从地址串里识别成都区县名 */
+function guessArea(addr){
+  if(!addr) return '';
+  var keys=Object.keys(DISTRICTS||{});
+  for(var i=0;i<keys.length;i++) if(String(addr).indexOf(keys[i])>=0) return keys[i];
+  return '';
+}
 function parseFormData(text){
-  var t=text||'', r={company:'',reportNo:'',count:'',address:'',contact:'',phone:'',nextDate:'',deviceType:'',inspectType:'',projectName:'',maintCo:''};
-  r.reportNo=fieldValue(t,'报检单号');
-  var dev=fieldValue(t,'设备类型');
-  r.inspectType=fieldValue(t,'检验类型')||'定期检验';
-  r.company=fieldValue(t,'使用单位');
-  r.projectName=fieldValue(t,'项目名称');
-  r.maintCo=fieldValue(t,'维保单位');
-  r.address=fieldValue(t,'设备所在地址');
-  r.contact=fieldValue(t,'检验现场联系人');
-  r.phone=fieldValue(t,'检验现场联系电话');
-  if(dev) r.deviceType=dev+r.inspectType;
+  var f=parseFormFields(text);
+  var r={company:'',reportNo:'',count:'',address:'',contact:'',phone:'',nextDate:'',deviceType:'',
+    inspectType:'',projectName:'',maintCo:'',area:'',raw:f};
+  r.reportNo=fPick(f,['报检单号','检验单号','单号']);
+  var devTop=fPick(f,['设备类型','设备类别','设备品种']);
+  r.inspectType=normInspect(fPick(f,['检验类型','检验类别','检验性质']));
+  r.company=fPick(f,['使用单位','申请单位','单位名称']);
+  r.projectName=fPick(f,['项目名称','工程名称']);
+  r.maintCo=fPick(f,['维保单位','维护保养单位']);
+  r.area=fPick(f,['设备所属区域','设备所在区域','所属区域','设备区域','所在区域','区县']);
+  r.address=fPick(f,['设备所在地址','设备地址','项目地址','使用地址','安装地址','地址']);
+  r.contact=fPick(f,['检验现场联系人','现场联系人','联系人','申请人','使用单位联系人']);
+  r.phone=fPick(f,['检验现场联系电话','现场联系电话','联系人电话','申请联系电话','联系电话','手机号','电话']);
+  var cnt=fPick(f,['设备数量','报检设备数量','数量','台数']);
+  if(cnt) r.count=String(cnt).replace(/[^0-9]/g,'')||'';
+  if(!r.area&&r.address) r.area=guessArea(r.address);
+  r.deviceType=matchDeviceType(normDevice(devTop),r.inspectType);
   return r;
 }
 function detectForm(text){
@@ -883,11 +978,12 @@ function renderTaskDetailHtml(t){
     +'<div class="dtl-item"><div class="k">报检数量</div><div class="v">'+esc(t.count||'1')+' 台</div></div>'
     +(t.projectName?'<div class="dtl-item"><div class="k">项目名称</div><div class="v">'+esc(t.projectName)+'</div></div>':'')
     +(t.maintCo?'<div class="dtl-item"><div class="k">维保单位</div><div class="v">'+esc(t.maintCo)+'</div></div>':'')
-    +'<div class="dtl-item"><div class="k">联系人</div><div class="v">'+esc(t.contact||'—')+(t.phone?'<div style="font-size:12px;color:var(--sub);font-weight:400">'+esc(t.phone)+'</div>':'')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">检验现场联系人</div><div class="v">'+esc(t.contact||'—')+(t.phone?'<div style="font-size:12px;color:var(--sub);font-weight:400">'+esc(t.phone)+(t.phone?'<a href="tel:'+esc(t.phone)+'" style="color:var(--acc);text-decoration:none;margin-left:8px">拨号</a>':'')+'</div>':'')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">设备所属区域</div><div class="v">'+esc(t.area||(t.loc?t.loc.district:'')||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">项目地址</div><div class="v">'
     +(t.address?'<a href="'+esc(navScheme(t))+'" style="color:var(--acc);text-decoration:none;display:inline-flex;align-items:center;gap:3px">'+esc(t.address)+' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg></a>':'—')
     +(t.address?'<a href="'+esc(navWebUrl(t))+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--hint);text-decoration:underline;margin-left:6px">网页版</a>':'')
-    +(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+' · 点击地址在高德搜索该项目</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位（补全含区名地址后可搜索）</div>')+'</div></div>'
+    +(t.loc?'<div style="font-size:11px;color:var(--sub);font-weight:400">已定位·'+esc(t.loc.district)+' · 点击地址在高德搜索该项目</div>':'<div style="font-size:11px;color:var(--red);font-weight:400">无法定位（补全区域或含区名的地址后即可）</div>')+'</div></div>'
     +'<div class="dtl-item"><div class="k">下次检验日期</div><div class="v">'+esc(t.nextCheckDate||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">产品类型</div><div class="v">'+esc(t.productType||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">125时间</div><div class="v">'+esc(t.time125||'—')+'</div></div>'
@@ -948,10 +1044,11 @@ function openTaskForm(idOrDate){
     +'<div><label>报检数量（台）</label><input type="number" id="f_count" value="'+(t?t.count||1:1)+'" min="1"></div></div>'
     +'<div class="frow row2"><div><label>项目名称</label><input type="text" id="f_project" value="'+esc(t?t.projectName:'')+'"></div>'
     +'<div><label>维保单位</label><input type="text" id="f_maint" value="'+esc(t?t.maintCo:'')+'"></div></div>'
-    +'<div class="frow"><label>项目地址</label><input type="text" id="f_address" value="'+esc(t?t.address:'')+'" placeholder="含区名可自动定位，如：青羊区斜阳路7号">'
+    +'<div class="frow row2"><div><label>设备所属区域</label><input type="text" id="f_area" value="'+esc(t?t.area||'':'')+'" placeholder="如：彭州市"></div><div></div></div>'
+    +'<div class="frow"><label>设备所在地址</label><input type="text" id="f_address" value="'+esc(t?t.address:'')+'" placeholder="含区名可自动定位，如：彭州市丽春镇启航大道112号">'
     +'<div class="hint" id="f_locHint"></div></div>'
-    +'<div class="frow row2"><div><label>联系人</label><input type="text" id="f_contact" value="'+esc(t?t.contact:'')+'"></div>'
-    +'<div><label>联系电话</label><input type="tel" id="f_phone" value="'+esc(t?t.phone:'')+'"></div></div>'
+    +'<div class="frow row2"><div><label>检验现场联系人</label><input type="text" id="f_contact" value="'+esc(t?t.contact:'')+'"></div>'
+    +'<div><label>检验现场联系电话</label><input type="tel" id="f_phone" value="'+esc(t?t.phone:'')+'"></div></div>'
     +'<div class="frow"><label>产品类型（可多选组合）</label><div id="f_prodTags" style="display:flex;flex-wrap:wrap;gap:6px">'+prodTagsHtml(t?t.productType:'')+'</div></div>'
     +'<div class="frow row2"><div><label>125时间</label><input type="text" id="f_time125" value="'+esc(t?t.time125:'')+'" placeholder="如：2026-08-12 14:30"></div>'
     +'<div><label>下次检验日期</label><input type="date" id="f_next" value="'+esc(t?t.nextCheckDate||'':'')+'"></div></div>'
@@ -964,7 +1061,7 @@ function openTaskForm(idOrDate){
   var layer=openSheet(t?'编辑任务':'添加任务', html);
   var he=layer?layer.querySelector('.head-extra'):null;
   if(he) he.innerHTML='<button class="btn sm" onclick="saveTask()">保存</button>';
-  if(t&&t.address){ document.getElementById('f_locHint').textContent = t.loc?('已定位：'+t.loc.district):'无法定位（将归入无法确定位置）'; }
+  if(t&&(t.address||t.area)){ document.getElementById('f_locHint').textContent = t.loc?('已定位：'+t.loc.district):'无法定位（将归入无法确定位置）'; }
   if(t&&t.endDate){
     document.getElementById('rangeEndWrap').style.display='block';
     document.getElementById('rangeBtn').textContent='收起（单日）';
@@ -984,10 +1081,12 @@ function typeSelChange(){
   document.getElementById('f_newtypeWrap').style.display = (v==='__new')?'block':'none';
 }
 document.addEventListener('input',function(e){
-  if(e.target&&e.target.id==='f_address'){
-    var loc=resolveLoc(e.target.value);
+  if(e.target&&(e.target.id==='f_address'||e.target.id==='f_area')){
+    var ae=document.getElementById('f_area'), ad=document.getElementById('f_address');
+    var addr=ad?ad.value.trim():'', area=ae?ae.value.trim():'';
+    var loc=resolveLoc(addr)||resolveLoc(area);
     var h=document.getElementById('f_locHint');
-    if(h) h.textContent = loc?('将定位到：'+loc.district):'无法定位（将归入无法确定位置）';
+    if(h) h.textContent = loc?('将定位到：'+loc.district+(resolveLoc(addr)?'（按地址识别）':'（按所属区域识别）')):'无法定位（将归入无法确定位置）';
   }
 });
 function saveTask(){
@@ -1010,6 +1109,7 @@ function saveTask(){
     projectName:document.getElementById('f_project')?document.getElementById('f_project').value.trim():'',
     maintCo:document.getElementById('f_maint')?document.getElementById('f_maint').value.trim():'',
     address:document.getElementById('f_address').value.trim(),
+    area:(document.getElementById('f_area')||{value:''}).value.trim(),
     contact:document.getElementById('f_contact').value.trim(),
     phone:document.getElementById('f_phone').value.trim(),
     productType:readProdTags(),
@@ -1019,7 +1119,8 @@ function saveTask(){
     status:document.getElementById('f_status').value
   };
   if(d.endDate && d.date && d.endDate<d.date){ toast('结束日期不能早于开始日期'); return; }
-  d.loc=resolveLoc(d.address);
+  if(!d.area) d.area=guessArea(d.address);
+  d.loc=resolveLoc(d.address)||resolveLoc(d.area);
   if(STATE.editingId){
     var t=STATE.tasks.find(function(x){return x.id===STATE.editingId;});
     var cleared=[];
@@ -1467,7 +1568,7 @@ function amapDrive(from,to){
 /* ================= 报检短信导入 ================= */
 function openSmsImport(){
   var html='<div class="frow"><label>粘贴报检短信</label><textarea class="sms-text" id="smsText" placeholder="将研究院发来的报检短信整段粘贴到这里…"></textarea>'
-    +'<div class="hint">支持两种格式：①研究院报检短信 ②综合检验系统复制的报检信息（含"报检单号：使用单位："等字段）。系统格式自动识别，任务名生成「使用单位（项目名称）」。</div></div>'
+    +'<div class="hint">支持两种格式：①研究院报检短信 ②综合检验系统复制的报检信息（含"报检单号：使用单位："等字段）。自动识别设备类别（起重机械→「起重机定期检验」、场（厂）内专用机动车辆→「叉车定期检验」等）；联系人优先取「检验现场联系人／检验现场联系电话」；定位优先按「设备所属区域」，其次按地址里的区县名。</div></div>'
     +'<button class="btn" style="width:100%" onclick="doParseSms()">解析并生成待安排任务</button>'
     +'<div id="smsResult"></div>';
   openSheet('报检短信导入', html);
@@ -1479,26 +1580,33 @@ function doParseSms(){
   var r=isForm?parseFormData(text):parseSms(text);
   if(!r.company&&!r.reportNo&&!r.address){ toast('未能识别关键信息，请检查格式'); return; }
   STATE.smsPreview=r; STATE.smsIsForm=isForm;
-  var defTitle=isForm?(r.company+'（'+r.projectName+'）'):r.company;
+  var defTitle=isForm?(r.projectName?(r.company+'（'+r.projectName+'）'):r.company):r.company;
   var html='<div class="preview-card"><div class="pv-title">解析结果 · 确认后入库'+(isForm?'（综合检验系统格式）':'（报检短信格式）')+'</div>'
-    +'<div class="frow"><label>任务标题</label><input type="text" id="p_company" value="'+esc(defTitle)+'"></div>'
+    +'<div class="frow"><label>任务标题（使用单位）</label><input type="text" id="p_company" value="'+esc(defTitle)+'"></div>'
     +(isForm?'<div class="frow row2"><div><label>项目名称</label><input type="text" id="p_project" value="'+esc(r.projectName)+'"></div>'
       +'<div><label>维保单位</label><input type="text" id="p_maint" value="'+esc(r.maintCo)+'"></div></div>':'')
     +'<div class="frow row2"><div><label>设备类别</label><select id="p_type">'+typeOptionsHtml(r.deviceType)+'</select></div>'
     +'<div><label>报检数量（台）</label><input type="number" id="p_count" value="'+r.count+'" min="1"></div></div>'
-    +'<div class="frow row2"><div><label>报检单号</label><input type="text" id="p_no" value="'+esc(r.reportNo)+'"></div>'
-    +'<div><label>下次检验日期</label><input type="date" id="p_next" value="'+esc(r.nextDate)+'"></div></div>'
-    +'<div class="frow"><label>项目地址</label><input type="text" id="p_addr" value="'+esc(r.address)+'"><div class="hint" id="p_locHint"></div></div>'
+    +'<div class="frow row2"><div><label>设备所属区域</label><input type="text" id="p_area" value="'+esc(r.area||'')+'" placeholder="如：彭州市"></div>'
+    +'<div><label>报检单号</label><input type="text" id="p_no" value="'+esc(r.reportNo)+'"></div></div>'
+    +'<div class="frow"><label>设备所在地址</label><input type="text" id="p_addr" value="'+esc(r.address)+'" oninput="smsLocHint()"><div class="hint" id="p_locHint"></div></div>'
     +'<div class="frow row2"><div><label>检验现场联系人</label><input type="text" id="p_contact" value="'+esc(r.contact)+'"></div>'
-    +'<div><label>联系电话</label><input type="tel" id="p_phone" value="'+esc(r.phone)+'"></div></div>'
+    +'<div><label>检验现场联系电话</label><input type="tel" id="p_phone" value="'+esc(r.phone)+'"></div></div>'
+    +'<div class="frow row2"><div><label>下次检验日期</label><input type="date" id="p_next" value="'+esc(r.nextDate)+'"></div><div></div></div>'
     +'<div class="frow"><label>备注</label><textarea id="p_note" style="min-height:56px"></textarea></div>'
     +'<div class="form-actions"><button class="btn" onclick="confirmSmsImport()">确认添加</button>'
     +'<button class="btn ghost" onclick="document.getElementById(\'smsResult\').innerHTML=\'\';STATE.smsPreview=null">重新解析</button></div>'
     +'</div>';
   document.getElementById('smsResult').innerHTML=html;
-  var loc=resolveLoc(r.address);
-  var h=document.getElementById('p_locHint');
-  if(h) h.textContent=loc?('将定位到：'+loc.district):'无法定位（将归入无法确定位置）';
+  smsLocHint();
+}
+function smsLocHint(){
+  var ae=document.getElementById('p_area'), ad=document.getElementById('p_addr'), h=document.getElementById('p_locHint');
+  if(!h) return;
+  var area=ae?ae.value.trim():'';
+  var addr=ad?ad.value.trim():'';
+  var loc=resolveLoc(addr)||resolveLoc(area);
+  h.textContent=loc?('将定位到：'+loc.district+(resolveLoc(addr)?'（按地址识别）':'（按所属区域识别）')):'无法定位（将归入无法确定位置，补上区域即可）';
 }
 function typeOptionsHtml(sel){
   var html='';
@@ -1527,6 +1635,7 @@ function confirmSmsImport(){
     reportNo:document.getElementById('p_no').value.trim(),
     nextCheckDate:document.getElementById('p_next').value,
     address:document.getElementById('p_addr').value.trim(),
+    area:(document.getElementById('p_area')||{value:''}).value.trim(),
     contact:document.getElementById('p_contact').value.trim(),
     phone:document.getElementById('p_phone').value.trim(),
     note:document.getElementById('p_note').value.trim(),
@@ -1534,10 +1643,12 @@ function confirmSmsImport(){
     date:'', time:'', endDate:'', status:'pending',
     postponeCount:0, postponedDates:[]
   };
-  t.loc=resolveLoc(t.address);
+  if(!t.area) t.area=guessArea(t.address);
+  t.loc=resolveLoc(t.address)||resolveLoc(t.area);
+  if(t.deviceType&&!STATE.types[t.deviceType]) STATE.types[t.deviceType]=pickColor();
   STATE.tasks.push(t);
   saveAll(); renderAll();
-  openSheet('导入成功','<div class="empty" style="padding:30px 0">任务「'+esc(taskTitle(t))+'」已加入待安排'+(t.loc?'，已自动定位到 '+esc(t.loc.district):'，需补充地址以参与顺路编排')+'。</div>'
+  openSheet('导入成功','<div class="empty" style="padding:30px 0">任务「'+esc(taskTitle(t))+'」已加入待安排'+(t.loc?'，已自动定位到 '+esc(t.loc.district):'，需补充区域/地址以参与顺路编排')+'。</div>'
     +'<button class="btn" style="width:100%" onclick="closeSheet();renderAll()">完成</button>');
   toast('已生成待安排任务');
 }
