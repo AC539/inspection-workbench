@@ -267,15 +267,27 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 /* 报告预览容器 */
 .rpt-toolbar{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 .rpt-meta{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:12px;line-height:1.8}
-.rpt-scroll{background:#E5E5E5;border-radius:14px;padding:14px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* 报告页铺满：弹层加宽 + 内容边距收窄 + 页面放大 */
+.sheet-layer.rpt-wide .sheet{max-width:1180px;width:100%}
+.sheet-layer.rpt-wide .sheet-head{padding:10px 14px}
+.sheet-layer.rpt-wide .sheet-body{padding:12px 10px}
+.rpt-alert{background:#FFF8E6;border:1px solid #F5D28A;border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.rpt-alert-hd{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#7A5B12;margin-bottom:8px}
+.rpt-alert-it{font-size:12px;color:#7A5B12;line-height:1.75;padding:7px 0;border-top:1px solid rgba(245,210,138,.7)}
+.rpt-alert-it:first-of-type{border-top:none}
+.rpt-alert-it b{color:#5A4208}
+.rpt-scroll{background:#E5E5E5;border-radius:14px;padding:12px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rpt-fit{width:794px}
 .rpt-scroll .page{margin:0 auto 14px;box-shadow:0 2px 10px rgba(0,0,0,.16);transform-origin:top left}
 @media print{
   body *{visibility:hidden}
   #rptHost,#rptHost *{visibility:visible}
   #rptHost{position:absolute;left:0;top:0;width:100%}
-  .rpt-toolbar,.rpt-noprint{display:none!important}
+  .rpt-toolbar,.rpt-noprint,.rpt-alert,.rpt-meta{display:none!important}
   .rpt-scroll{background:#fff;padding:0;overflow:visible}
-  .rpt-scroll .page{margin:0;box-shadow:none;page-break-after:always}
+  /* 打印恢复 1:1 原始 A4 尺寸，忽略屏幕上的放大缩放 */
+  .rpt-fit{transform:none!important;width:auto!important;margin:0!important}
+  .rpt-scroll .page{margin:0!important;box-shadow:none;page-break-after:always}
   .rpt-scroll .page:last-child{page-break-after:auto}
   @page{size:A4;margin:0}
 }
@@ -1291,18 +1303,14 @@ function renderTaskDetailHtml(t){
     html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
   }
   var _cn=getTaskCfgs(t.id).length;
-  html+='<div style="display:flex;gap:8px;margin-bottom:14px">'
-    +'<button class="btn sec" style="flex:1" onclick="openCfgForm(\''+t.id+'\',null)">'
-    +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录配置</button>'
-    +'<button class="btn '+('')+'" style="flex:1;background:'+(_cn?'var(--acc)':'var(--card)')+';color:'+(_cn?'#fff':'var(--acc)')+';border:1px solid '+(_cn?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
-    +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
-    +'查看配置'+(_cn?'（'+_cn+'）':'')+'</button></div>';
   if(_cn){
-    html+='<div style="display:flex;gap:8px;margin-bottom:16px">'
-      +'<button class="btn-report green" onclick="quickReport(\''+t.id+'\')">'
-      +'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
-      +'一键生成检验报告</button></div>';
+    html+='<button class="btn-report green" style="margin-bottom:8px" onclick="quickReport(\''+t.id+'\')">'
+      +'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h2"/></svg>'
+      +'一键生成检验报告'+(_cn>1?('（'+_cn+' 份配置）'):'')+'</button>';
   }
+  html+='<button class="btn '+(_cn?'sec':'')+'" style="width:100%;margin-bottom:14px" onclick="openCfgDetail(\''+t.id+'\')">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
+    +'查看配置'+(_cn?('（'+_cn+' 份）'):'')+'</button>';
   html+='<div class="form-actions">'
     +'<button class="btn" onclick="openTaskForm(\''+t.id+'\')">编辑任务</button>'
     +(t.date?'<button class="btn warn" onclick="cancelSchedule(\''+t.id+'\')">取消安排</button>':'')
@@ -1313,9 +1321,8 @@ function renderTaskDetailHtml(t){
 }
 function cfgHeadBtns(t){
   var n=getTaskCfgs(t.id).length;
-  return '<button class="btn sec sm" onclick="openCfgForm(\''+t.id+'\',null)">'
-    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录配置</button>'
-    +'<button class="btn sm" style="background:'+(n?'var(--acc)':'var(--card)')+';color:'+(n?'#fff':'var(--acc)')+';border:1px solid '+(n?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
+  /* 右上角只保留一个入口：查看配置（记录配置在配置详情页内完成） */
+  return '<button class="btn sm" style="background:'+(n?'var(--acc)':'var(--card)')+';color:'+(n?'#fff':'var(--acc)')+';border:1px solid '+(n?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
     +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
     +'查看配置'+(n?' <b style="font-weight:700">'+n+'</b>':'')+'</button>';
 }
@@ -1987,7 +1994,7 @@ function openSettings(){
   html+='<div class="set-group"><h4>电梯配置</h4>'
     +'<div style="font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:10px">'
     +'当前共 <b style="color:var(--txt)">'+_cfgTotal+'</b> 份配置，挂在各电梯项目上。<br>'
-    +'打开任务 → 右上角「记录配置」新增，「查看配置」查看与生成报告。</div>'
+    +'打开任务 → 点「查看配置」进入配置页，在页内记录新配置或一键生成报告。</div>'
     +'<button class="btn sec" style="width:100%" onclick="openCfgImportView()">'
     +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>'
     +'从「我的工作台」导入历史配置</button></div>';
@@ -3150,20 +3157,23 @@ function rptBuild(CFG, host){
  * - 可直接调用报告引擎生成 14 页 A4 原始记录
  * ============================================================ */
 
-/* ---- 字段定义（与「我的工作台」完全一致） ---- */
+/* ---- 字段定义 ----
+ * 改造情况拆为两项：renovated(是否改造) + renovation(改造内容详情)
+ * 联系人 / 维保单位 已移除（项目基础信息里已有，避免重复维护）
+ * 制动器形式只保留 块式 / 鼓式
+ */
 var CFG_SECTIONS = [
   { title:'基本信息', fields:[
     {k:'elevatorType', label:'电梯类型', type:'select', hint:'决定检验配置', options:['05年前超老电梯','超15年电梯','2017年前老电梯','2017年后新电梯','2024年后超新电梯']},
     {k:'roomType',     label:'机房类型', type:'select', options:['有机房','无机房']},
-    {k:'renovation',   label:'改造情况', type:'text', ph:'如有改造请记录', required:false},
-    {k:'contact',      label:'联系人',   type:'text', ph:'联系人姓名', required:false},
-    {k:'maintainer',   label:'维保单位', type:'text', ph:'维保单位名称', required:false}
+    {k:'renovated',    label:'是否改造', type:'select', options:['否','是']},
+    {k:'renovation',   label:'改造内容详情', type:'textarea', ph:'改造了哪些部分？可换行', required:false}
   ]},
   { title:'机房设备', fields:[
     {k:'handwheel',        label:'盘车轮', type:'select', hint:'电器开关05年1月之前可以没有', options:['有','无','不适用（05年前）']},
     {k:'emergencyElectric',label:'紧急电动', type:'select', options:['有','无']},
     {k:'autoReset',        label:'限速器自动复位', type:'select', options:['有','无']},
-    {k:'brakeType',        label:'制动器形式', type:'select', options:['鼓式','碟式','块式']},
+    {k:'brakeType',        label:'制动器形式', type:'select', options:['块式','鼓式']},
     {k:'upOverspeed',      label:'上行超速保护装置', type:'select', hint:'05年1月之前可无，异步机不能作用在高速轴', options:['有','无','不适用（05年前）','不适用（异步机高速轴）']},
     {k:'unexpectedMove',   label:'意外移动保护装置', type:'select', options:['有','无']},
     {k:'beltType',         label:'包覆带', type:'select', options:['有','无']}
@@ -3176,7 +3186,7 @@ var CFG_SECTIONS = [
     {k:'counterSafety',label:'对重安全钳', type:'select', options:['有','无']}
   ]}
 ];
-/* 必填字段（对重块数量不在其中——它单独记录） */
+/* 必填字段 */
 var CFG_REQUIRED = [];
 CFG_SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ if(f.required!==false) CFG_REQUIRED.push(f.k); }); });
 
@@ -3225,6 +3235,8 @@ function openCfgForm(taskId, cfgId){
         inner = '<select data-cfg="'+f.k+'"><option value="">请选择</option>'
           + f.options.map(function(o){ return '<option value="'+esc(o)+'"'+(v===o?' selected':'')+'>'+esc(o)+'</option>'; }).join('')
           + '</select>';
+      }else if(f.type==='textarea'){
+        inner = '<textarea data-cfg="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>';
       }else{
         inner = '<input type="text" data-cfg="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
       }
@@ -3234,34 +3246,43 @@ function openCfgForm(taskId, cfgId){
     });
   });
 
-  /* 对重块数量 —— 独立记录区（不并入上面配置） */
-  html += '<div class="cfg-section">对重块（单独记录）</div>';
+  /* 对重块 —— 材质选在最上，下面记详情 */
   html += '<div class="cfg-cwt">'
     + '<div class="ct">'
     + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>'
-    + '对重块数量</div>'
-    + '<div class="cfg-row2">'
-    + '<div class="cfg-field" style="margin:0"><label>块数</label>'
-    + '<input type="number" id="cfg_cwtCount" min="0" step="1" value="'+esc(cur?(cur.cwtCount||''):'')+'" placeholder="如：30"></div>'
+    + '对重块</div>'
     + '<div class="cfg-field" style="margin:0"><label>对重块材质</label>'
     + '<select id="cfg_cwtMat"><option value="">请选择</option>'
     + ['金属','非金属'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.cwtMat===o)?' selected':'')+'>'+o+'</option>'; }).join('')
     + '</select></div>'
-    + '</div>'
-    + '<div class="cfg-field" style="margin-top:10px"><label>是否变化 / 新检规说明<span class="hint">可换行</span></label>'
-    + '<textarea id="cfg_cwtNote" placeholder="例如：28块（未变化）&#10;新检规：...">'+esc(cur?(cur.cwtNote||''):'')+'</textarea></div>'
+    + '<div class="cfg-field" style="margin-top:10px"><label>对重块详情<span class="hint">数量、是否变化、新检规说明，可换行</span></label>'
+    + '<textarea id="cfg_cwtNote" style="min-height:96px" placeholder="例如：28块（未变化）&#10;新检规：...">'+esc(cur?(cur.cwtNote||''):'')+'</textarea></div>'
     + '</div>';
 
   /* 报告补充项 */
+  var task = STATE.tasks.find(function(x){return x.id===taskId;});
+  var t125 = (task && task.time125) ? String(task.time125).trim() : '';
   html += '<div class="cfg-section">报告补充项<span class="hint" style="font-weight:400;color:var(--hint);font-size:11px;margin-left:6px">用于生成报告时的判定</span></div>';
   html += '<div class="cfg-field"><label>客梯 / 货梯</label><select id="cfg_usage">'
     + ['客梯','货梯'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.usage===o)?' selected':'')+'>'+o+'</option>'; }).join('')
     + '</select></div>';
-  html += '<div class="cfg-row2">'
-    + '<div class="cfg-field"><label>上次125%试验</label><input type="text" id="cfg_brakeTest" value="'+esc(cur?(cur.brakeTest||'/'):'/')+'" placeholder="如：2025-06"></div>'
-    + '<div class="cfg-field"><label>本次做125%</label><select id="cfg_doBrake">'
-    + ['否','是'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.doBrake===o)?' selected':'')+'>'+o+'</option>'; }).join('')
-    + '</select></div></div>';
+
+  /* 125 时间：默认读项目基础信息（任务里的 125 时间字段） */
+  var b125 = cur ? (cur.brakeTest||'') : (t125 || '');
+  var autoIsThisYear = b125 ? (String(b125).indexOf(String(new Date().getFullYear())) === 0) : false;
+  html += '<div class="cfg-field"><label>上次125%试验时间'
+    + '<span class="hint">'+(t125?'已自动读取项目基础信息，可改':'项目基础信息未填，手动填写')+'</span></label>'
+    + '<input type="text" id="cfg_brakeTest" value="'+esc(b125)+'" placeholder="如：2025-06，留空表示无记录"></div>';
+  /* 本年是否做125：125 时间为本年 → 默认「是」 */
+  html += '<div class="cfg-field"><label>本年是否做125%试验'
+    + (autoIsThisYear?'<span class="hint" style="color:var(--acc)">125时间为本年，已默认「是」</span>':'')
+    + '</label>'
+    + '<select id="cfg_doBrake">'
+    + ['否','是'].map(function(o){
+        var sel = cur ? (cur.doBrake===o) : (o==='是' ? autoIsThisYear : !autoIsThisYear);
+        return '<option value="'+o+'"'+(sel?' selected':'')+'>'+o+'</option>';
+      }).join('')
+    + '</select></div>';
 
   html += '<div class="cfg-warn"><b>超新备案电梯专项提醒</b>以下项目不作检验要求：<br>1. 不要求单边制动<br>2. 超满载声光报警可选其一（声 OR 光）<br>3. 不要求其他制动形式（封星）</div>';
 
@@ -3302,11 +3323,10 @@ function readCfgForm(){
   return {
     name: g('cfg_name').trim(),
     fields: f,
-    cwtCount: g('cfg_cwtCount').trim(),
     cwtMat: g('cfg_cwtMat'),
     cwtNote: g('cfg_cwtNote').trim(),
     usage: g('cfg_usage'),
-    brakeTest: g('cfg_brakeTest').trim()||'/',
+    brakeTest: g('cfg_brakeTest').trim(),
     doBrake: g('cfg_doBrake')
   };
 }
@@ -3320,6 +3340,17 @@ function backToCfgDetail(taskId){
   }
   document.body.style.overflow = '';
   setTimeout(function(){ openCfgDetail(taskId); }, 60);
+}
+
+/* 从配置详情回到任务详情：同样收干净再重开 */
+function backToTask(taskId){
+  while(SHEET_STACK.length){
+    var l = SHEET_STACK.pop();
+    l.classList.remove('open');
+    l.remove();
+  }
+  document.body.style.overflow = '';
+  setTimeout(function(){ openTask(taskId); }, 60);
 }
 
 function saveCfgForm(){
@@ -3339,12 +3370,12 @@ function saveCfgForm(){
   if(!data.name) data.name = defaultCfgName(data);
   if(CFG_EDIT.cfgId){
     var c = cfgs.find(function(x){return x.id===CFG_EDIT.cfgId;});
-    if(c){ c.name=data.name; c.fields=data.fields; c.cwtCount=data.cwtCount; c.cwtMat=data.cwtMat;
+    if(c){ c.name=data.name; c.fields=data.fields; c.cwtMat=data.cwtMat;
            c.cwtNote=data.cwtNote; c.usage=data.usage; c.brakeTest=data.brakeTest;
            c.doBrake=data.doBrake; c.updatedAt=Date.now(); }
     toast('配置已更新');
   }else{
-    cfgs.push({ id:cfgUid(), name:data.name, fields:data.fields, cwtCount:data.cwtCount,
+    cfgs.push({ id:cfgUid(), name:data.name, fields:data.fields,
       cwtMat:data.cwtMat, cwtNote:data.cwtNote, usage:data.usage, brakeTest:data.brakeTest,
       doBrake:data.doBrake, createdAt:Date.now(), updatedAt:Date.now() });
     toast('配置已保存');
@@ -3406,7 +3437,8 @@ function openCfgDetail(taskId){
     + '<div class="acts">'
     + '<button class="btn wide" onclick="openCfgForm(\''+taskId+'\',null)">'
     + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录新配置</button>'
-    + '<button class="btn alt" onclick="closeSheet();openTask(\''+taskId+'\')">返回任务</button>'
+    + (cfgs.length>1?'<button class="btn alt" onclick="quickReport(\''+taskId+'\')">选择生成报告</button>':'')
+    + '<button class="btn alt" onclick="backToTask('+JSON.stringify(taskId).replace(/"/g,'&quot;')+')">返回任务</button>'
     + '</div></div>';
 
   if(!cfgs.length){
@@ -3414,12 +3446,18 @@ function openCfgDetail(taskId){
       + '<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 7v6M9 10h6"/></svg>'
       + '<div style="font-size:14px;color:var(--sub)">该项目还没有记录配置</div>'
       + '<div style="font-size:12px;margin-top:4px">点上方「记录新配置」开始，支持一份项目挂多台电梯配置</div>'
-      + '<button class="btn" style="margin-top:16px" onclick="openCfgForm(\''+taskId+'\',null)">立即记录</button>'
+      + '<button class="btn-report" style="margin-top:16px;width:auto;padding:0 28px" onclick="openCfgForm(\''+taskId+'\',null)">立即记录</button>'
       + '</div>';
     var l0 = openSheet('电梯配置', html);
     l0.__type='cfgDetail'; l0.__id=taskId;
     return;
   }
+
+  /* 已��配置：顶部一键生成（单份直接生成，多份先选） */
+  html += '<button class="btn-report green" style="margin-bottom:14px" onclick="quickReport(\''+taskId+'\')">'
+    + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h2"/></svg>'
+    + (cfgs.length>1 ? ('一键生成报告（'+cfgs.length+' 份配置）') : '一键生成检验报告')
+    + '</button>';
 
   html += '<div style="font-size:12px;color:var(--sub);font-weight:600;margin:2px 0 10px">共 '+cfgs.length+' 份配置</div>';
 
@@ -3435,10 +3473,11 @@ function cfgVal(c, k){ return (c.fields && c.fields[k]) || ''; }
 
 function renderCfgCard(taskId, c, i){
   var f = c.fields||{};
+  var cwtBlocks = parseCwtCount(c.cwtNote);
   var h = '<div class="cfg-card c'+(i%4+1)+'">'
     + '<div class="cfg-card-hd">'
     + '<span class="nm">'+esc(c.name||('配置'+(i+1)))+'</span>'
-    + '<span class="cnt">'+(c.cwtCount?('对重 '+esc(c.cwtCount)+' 块'):'')+'</span>'
+    + '<span class="cnt">'+(cwtBlocks?('对重 '+cwtBlocks+' 块'):'')+'</span>'
     + '<button class="del" onclick="delCfg(\''+taskId+'\',\''+c.id+'\')" title="删除">'
     + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
     + '</div>';
@@ -3447,16 +3486,24 @@ function renderCfgCard(taskId, c, i){
   CFG_SECTIONS.forEach(function(sec){
     sec.fields.forEach(function(fd){
       var v = f[fd.k]||'';
-      h += '<div class="it"><div class="k">'+esc(fd.label)+'</div><div class="v'+(v?'':' gray')+'">'+(v?esc(v):'未填')+'</div></div>';
+      var short = v.replace(/\n/g,' ');
+      h += '<div class="it"><div class="k">'+esc(fd.label)+'</div><div class="v'+(v?'':' gray')+'" title="'+esc(short)+'">'+(short?esc(short):'未填')+'</div></div>';
     });
   });
-  h += '<div class="it"><div class="k">对重块数量</div><div class="v'+(c.cwtCount?'':' gray')+'">'+(c.cwtCount?esc(c.cwtCount)+' 块':'未填')+'</div></div>';
   h += '<div class="it"><div class="k">对重块材质</div><div class="v'+(c.cwtMat?'':' gray')+'">'+(c.cwtMat?esc(c.cwtMat):'未填')+'</div></div>';
+  h += '<div class="it"><div class="k">对重块数量</div><div class="v'+(cwtBlocks?'':' gray')+'">'+(cwtBlocks?cwtBlocks+' 块':'见详情')+'</div></div>';
   h += '<div class="it"><div class="k">客/货梯</div><div class="v'+(c.usage?'':' gray')+'">'+(c.usage?esc(c.usage):'客梯')+'</div></div>';
+  h += '<div class="it"><div class="k">上次125%试验</div><div class="v'+(c.brakeTest?'':' gray')+'">'+(c.brakeTest?esc(c.brakeTest):'未填')+'</div></div>';
+  h += '<div class="it"><div class="k">本年做125%</div><div class="v'+(c.doBrake?'':' gray')+'">'+(c.doBrake?esc(c.doBrake):'否')+'</div></div>';
   h += '</div>';
 
   if(c.cwtNote){
-    h += '<div style="font-size:12px;color:var(--sub);background:var(--bg);border-radius:10px;padding:9px 11px;margin-top:9px;white-space:pre-wrap;line-height:1.65">'+esc(c.cwtNote)+'</div>';
+    h += '<div style="font-size:12px;color:var(--sub);background:var(--bg);border-radius:10px;padding:9px 11px;margin-top:9px;white-space:pre-wrap;line-height:1.65"><b style="color:var(--txt)">对重块详情：</b>'+esc(c.cwtNote)+'</div>';
+  }
+  /* 改造情况：选了「是」但没写详情 → 明确提示 */
+  if(f.renovated==='是' && !(f.renovation||'').trim()){
+    h += '<div style="font-size:12px;color:#8A5B12;background:#FFF8E6;border:1px solid #F5D28A;border-radius:10px;padding:9px 11px;margin-top:8px">'
+      + '⚠ 已标记「有改造」但未填写改造详情，生成报告时会提醒核对往年报告。</div>';
   }
 
   h += '<div style="display:flex;gap:8px;margin-top:12px">'
@@ -3473,6 +3520,13 @@ function renderCfgCard(taskId, c, i){
 /* ============================================================
  * 生成报告
  * ============================================================ */
+/* 从「对重块详情」文本里解析块数，如「28块（未变化）」→ 28 */
+function parseCwtCount(note){
+  if(!note) return '';
+  var m = String(note).match(/(\d+)\s*块/);
+  return m ? m[1] : '';
+}
+
 /* 「我的工作台」配置字段 → 报告引擎字段 的映射 */
 function cfgToRpt(c){
   var f = c.fields||{};
@@ -3483,7 +3537,7 @@ function cfgToRpt(c){
   };
   var elevClass = clsMap[f.elevatorType] || '新';
 
-  /* 制动器形式：鼓式 → 鼓式制动器；碟式/块式 → 块式制动器 */
+  /* 制动器形式：鼓式 → 鼓式制动器；块式 → 块式制动器 */
   var brakeStyle = (f.brakeType==='鼓式') ? '鼓式制动器' : '块式制动器';
 
   /* 缓冲器类型：液压 → 耗能型；弹簧/聚氨酯 → 蓄能型 */
@@ -3499,7 +3553,7 @@ function cfgToRpt(c){
     machineRoom:  f.roomType || '有机房',
     elevClass:    elevClass,
     usageType:    c.usage || '客梯',
-    modification: f.renovation ? '有' : '无',
+    modification: f.renovated==='是' ? '有' : '无',
     handWheel:    yn(f.handwheel),
     emergElec:    yn(f.emergencyElectric),
     brakeStyle:   brakeStyle,
@@ -3511,7 +3565,7 @@ function cfgToRpt(c){
     doorCloseType: f.doorCloser || '重锤',
     sheaveMat:    sheaveMat,
     bufferType:   bufferType,
-    cwtCount:     c.cwtCount || '30',
+    cwtCount:     parseCwtCount(c.cwtNote) || '30',
     cwtMat:       c.cwtMat || '金属',
     safeWindow:   yn(f.safetyWindow),
     brakeTest:    c.brakeTest || '/',
@@ -3543,15 +3597,37 @@ function openReport(taskId, cfgId){
 
   html += '<div class="rpt-meta">'
     + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+esc(c.name||'配置')+'</div>'
-    + '<div style="color:var(--sub)">'+esc([cfg.machineRoom, clsLabel(cfg.elevClass), cfg.usageType, '对重 '+cfg.cwtCount+' 块'].join(' · '))+'</div>'
+    + '<div style="color:var(--sub)">'+esc([cfg.machineRoom, clsLabel(cfg.elevClass), cfg.usageType, '对重 '+cfg.cwtCount+' 块', '上次125% '+(c.brakeTest||'/'), '本年125% '+(c.doBrake||'否')].join(' · '))+'</div>'
     + (tagText? '<div style="color:var(--acc);margin-top:4px">'+esc(tagText)+'</div>':'')
     + (t.title? '<div style="color:var(--sub);margin-top:4px">'+esc(t.title)+'</div>':'')
     + '</div>';
 
-  html += '<div class="rpt-scroll" id="rptScroll"><div id="rptHost"></div></div>';
+  /* 重点提醒：改造详情缺失 / 对重块详情缺失 */
+  var alerts = [];
+  if(f.renovated==='是' && !(f.renovation||'').trim()){
+    alerts.push('该电梯已标记「有改造」，但未填写改造内容详情。'
+      + '<b>请查看往年检验原始记录确认改造详情</b>，核对本报告涉及改造的检验项目结论是否需要调整。');
+  }
+  if(!(c.cwtNote||'').trim()){
+    alerts.push('未填写对重块详情（数量/是否变化/新检规说明），报告中对重相关项目可能与实际不符，'
+      + '<b>建议补充后再核对报告</b>。');
+  }
+  if(alerts.length){
+    html += '<div class="rpt-alert">'
+      + '<div class="rpt-alert-hd">'
+      + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>'
+      + '生成前请确认以下 '+alerts.length+' 项</div>'
+      + alerts.map(function(a){ return '<div class="rpt-alert-it">'+a+'</div>'; }).join('')
+      + '</div>';
+  }
+
+  html += '<div class="rpt-scroll" id="rptScroll"><div id="rptHost" class="rpt-fit"></div></div>';
 
   var layer = openSheet('检验原始记录 · '+(c.name||''), html);
   layer.__type='report'; layer.__id=taskId;
+  layer.classList.add('rpt-wide');
+  /* 头部标题栏也放大一号，便于阅读 */
+  var st = layer.querySelector('.st'); if(st) st.style.fontSize='18px';
   RPT_STATE.taskId = taskId; RPT_STATE.cfgId = cfgId;
 
   setTimeout(function(){
@@ -3579,29 +3655,45 @@ function regenReport(){
   fitReport();
 }
 
-/* A4 页宽 210mm ≈ 794px；容器窄则整体缩放 */
+/* A4 页宽 210mm ≈ 794px。
+ * 手机窄屏 → 缩放铺满；桌面宽屏 → 按可用宽度放大（上限 1.6x，兼顾可读性与打印比例）。
+ */
+var RPT_PAGE_W = 794;
+var RPT_PAGE_H = 1123;
+var RPT_MAX_SCALE = 1.6;
 function fitReport(){
   var scroll = document.getElementById('rptScroll');
   if(!scroll) return;
-  var avail = scroll.clientWidth - 16;
-  var pageW = 794;
-  var scale = Math.min(1, avail/pageW);
-  scroll.querySelectorAll('.page').forEach(function(p){
-    p.style.transform = scale<1 ? ('scale('+scale+')') : '';
-    p.style.marginBottom = scale<1 ? (14 - (1-scale)*1120) + 'px' : '';
-    if(scale<1) p.style.marginRight = (1-scale)*pageW + 'px';
+  var avail = scroll.clientWidth - 12;
+  var scale = avail / RPT_PAGE_W;
+  if(scale > RPT_MAX_SCALE) scale = RPT_MAX_SCALE;
+  if(scale <= 0) return;
+  /* 缩放施加在包裹层上：页面自身保持 794px 原宽，缩放后恰好等于可用宽度 → 天然铺满且居中 */
+  scroll.querySelectorAll('.rpt-fit').forEach(function(host){
+    host.style.transform = 'scale('+scale+')';
+    host.style.transformOrigin = 'top left';
+    host.style.width = RPT_PAGE_W + 'px';
+    /* 缩放后实际占位：宽度 = 794*scale，高度 = 总高*scale */
+    host.style.marginRight = (avail - RPT_PAGE_W*scale) + 'px';
   });
 }
+/* 窗口尺寸变化 / 旋转屏幕时重排 */
+var RPT_RESIZE_T;
+function refitReport(){
+  clearTimeout(RPT_RESIZE_T);
+  RPT_RESIZE_T = setTimeout(fitReport, 120);
+}
+window.addEventListener('resize', refitReport);
+window.addEventListener('orientationchange', refitReport);
 
 /* ============================================================
  * 数据迁移 —— 从「我的工作台」历史记录导入
  * ============================================================ */
-/* 我的工作台 ef_xxx → 本模块字段 key */
+/* 我的工作台 ef_xxx → 本模块字段 key（联系人/维保单位已不再需要） */
 var WB2CFG = {
-  ef_elevatorType:'elevatorType', ef_roomType:'roomType', ef_renovation:'renovation',
-  ef_contact:'contact', ef_maintainer:'maintainer', ef_handwheel:'handwheel',
-  ef_emergencyElectric:'emergencyElectric', ef_autoReset:'autoReset',
-  ef_brakeType:'brakeType', ef_upOverspeed:'upOverspeed',
+  ef_elevatorType:'elevatorType', ef_roomType:'roomType',
+  ef_handwheel:'handwheel', ef_emergencyElectric:'emergencyElectric',
+  ef_autoReset:'autoReset', ef_brakeType:'brakeType', ef_upOverspeed:'upOverspeed',
   ef_unexpectedMove:'unexpectedMove', ef_beltType:'beltType',
   ef_doorCloser:'doorCloser', ef_sheaveMaterial:'sheaveMaterial',
   ef_bufferType:'bufferType', ef_safetyWindow:'safetyWindow',
@@ -3616,18 +3708,25 @@ function wbRecordToCfg(rec){
     var v = f[ef];
     if(v!=null && v!=='') out[WB2CFG[ef]] = String(v);
   });
-  /* 对重块：从旧的多行文本里抽出块数 */
-  var cwtText = f.ef_counterweight || '';
-  var m = cwtText.match(/(\d+)\s*块/);
-  var cwtCount = m ? m[1] : '';
+  /* 制动器形式：旧数据可能是「碟式」，新表单只有块式/鼓式 → 碟式归入块式 */
+  if(out.brakeType==='碟式') out.brakeType='块式';
+  /* 改造情况：旧字段是自由文本 → 拆成 是否改造 + 详情 */
+  var oldRen = (f.ef_renovation||'').trim();
+  if(oldRen){
+    out.renovated = '是';
+    out.renovation = oldRen;
+  }else{
+    out.renovated = '否';
+  }
+  /* 对重块：旧的多行文本整体搬到详情 */
+  var cwtText = (f.ef_counterweight||'').trim();
   return {
     name: rec.preview ? ('历史 ' + String(rec.date||'').slice(5) + ' 配置') : '导入配置',
     fields: out,
-    cwtCount: cwtCount,
     cwtMat: '',
     cwtNote: cwtText,
     usage: '客梯',
-    brakeTest: '/',
+    brakeTest: '',
     doBrake: '否',
     createdAt: rec.t || Date.now(),
     updatedAt: Date.now()
