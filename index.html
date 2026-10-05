@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="application-name" content="检验工作台">
 <meta name="theme-color" content="#007AFF">
-<meta name="description" content="特种设备检验日历与排程工具">
+<meta name="description" content="特种设备检验日历、排程与电梯配置报告一体化工具">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.jpg">
 <link rel="icon" type="image/jpeg" href="icon.jpg">
-<title>检验工作台</title>
+<title>检验工作台 · 配置版</title>
 <style>
 :root{
   --bg:#F5F5F7; --card:#FFFFFF; --line:rgba(0,0,0,.08); --line2:rgba(0,0,0,.14);
@@ -208,6 +208,301 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .confirm-box .cd{font-size:14px;color:var(--sub);margin-bottom:18px;line-height:1.6}
 .confirm-box .cb{display:flex;gap:10px}
 .confirm-box .cb .btn{flex:1}
+
+/* ================= 电梯配置模块 ================= */
+.cfg-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;font-size:13px;font-weight:500;background:var(--accSoft);color:var(--acc);border:1px solid transparent;cursor:pointer;white-space:nowrap}
+.cfg-chip:hover{filter:brightness(.97)}
+.cfg-chip.n{background:var(--bg);color:var(--sub);border-color:var(--line2)}
+.cfg-chip.on{background:var(--acc);color:#fff}
+.cfg-bar{display:flex;align-items:center;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:4px;-webkit-overflow-scrolling:touch}
+.cfg-bar::-webkit-scrollbar{height:0}
+.cfg-section{font-size:12px;font-weight:700;color:var(--acc);letter-spacing:.5px;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.cfg-section:first-child{margin-top:0}
+.cfg-field{margin-bottom:12px}
+.cfg-field>label{display:block;font-size:12px;font-weight:600;color:var(--sub);margin-bottom:5px}
+.cfg-field .hint{font-weight:400;color:var(--hint);font-size:11px;margin-left:6px}
+.cfg-field select,.cfg-field input[type=text],.cfg-field input[type=number],.cfg-field textarea{width:100%;min-height:44px;border:1px solid var(--line2);border-radius:12px;padding:10px 12px;background:var(--card);color:var(--txt);outline:none;font-size:15px;transition:border-color .15s}
+.cfg-field select:focus,.cfg-field input:focus,.cfg-field textarea:focus{border-color:var(--acc)}
+.cfg-field textarea{min-height:76px;resize:vertical;line-height:1.6}
+.cfg-field.unfilled>label{color:var(--red)}
+.cfg-field.unfilled select,.cfg-field.unfilled input,.cfg-field.unfilled textarea{border-color:#FFB3AE;background:#FFF7F6}
+.cfg-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:400px){.cfg-row2{grid-template-columns:1fr}}
+.cfg-warn{background:#FFF8E6;border:1px solid #F5D28A;color:#7A5B12;border-radius:12px;padding:11px 13px;font-size:12px;line-height:1.75;margin:14px 0}
+.cfg-warn b{display:block;font-size:13px;margin-bottom:4px}
+/* 对重块独立区 */
+.cfg-cwt{background:#F0F7FF;border:1px solid #C9E2FF;border-radius:14px;padding:14px;margin-bottom:6px}
+.cfg-cwt .ct{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#0A66C2;margin-bottom:10px}
+/* 配置卡片列表 */
+.cfg-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;border-left:4px solid var(--acc)}
+.cfg-card.c2{border-left-color:var(--purple)}
+.cfg-card.c3{border-left-color:var(--teal)}
+.cfg-card.c4{border-left-color:var(--orange)}
+.cfg-card-hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cfg-card-hd .nm{font-size:15px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cfg-card-hd .cnt{font-size:11px;color:var(--hint);font-weight:500}
+.cfg-card-hd .del{width:32px;height:32px;border-radius:9px;color:var(--hint);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cfg-card-hd .del:hover{color:var(--red);background:#FFF0EF}
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px}
+.cfg-grid .it{background:var(--bg);border-radius:10px;padding:7px 10px;min-width:0}
+.cfg-grid .it .k{font-size:10px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfg-grid .it .v{font-size:13px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfg-grid .it .v.gray{color:var(--hint);font-weight:400}
+.cfg-card .btn-report,.cfg-card .btn{position:relative;z-index:2}
+.cfg-empty{text-align:center;padding:34px 20px;color:var(--hint)}
+.cfg-empty svg{opacity:.35;margin-bottom:10px}
+/* 详情页头部操作条 */
+.cfg-hero{background:linear-gradient(135deg,#007AFF,#5AC8FA);color:#fff;border-radius:18px;padding:16px;margin-bottom:14px}
+.cfg-hero .h1{font-size:17px;font-weight:700;display:flex;align-items:center;gap:8px}
+.cfg-hero .h2{font-size:13px;opacity:.92;margin-top:6px;line-height:1.6}
+.cfg-hero .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.cfg-hero .acts .btn{background:rgba(255,255,255,.95);color:var(--acc)}
+.cfg-hero .acts .btn.alt{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45)}
+.cfg-hero .acts .btn.wide{flex:1;min-width:130px}
+/* 生成报告按钮 —— 显眼位置 */
+.btn-report{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:56px;border-radius:16px;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(135deg,#FF9500,#FF6A00);box-shadow:0 6px 18px rgba(255,106,0,.32);letter-spacing:.5px}
+.btn-report:active{opacity:.85;transform:scale(.99)}
+.btn-report.blue{background:linear-gradient(135deg,#007AFF,#0A84FF);box-shadow:0 6px 18px rgba(0,122,255,.3)}
+.btn-report.green{background:linear-gradient(135deg,#34C759,#00B36B);box-shadow:0 6px 18px rgba(52,199,89,.3)}
+/* 报告预览容器 */
+.rpt-toolbar{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.rpt-meta{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:12px;line-height:1.8}
+.rpt-scroll{background:#E5E5E5;border-radius:14px;padding:14px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rpt-scroll .page{margin:0 auto 14px;box-shadow:0 2px 10px rgba(0,0,0,.16);transform-origin:top left}
+@media print{
+  body *{visibility:hidden}
+  #rptHost,#rptHost *{visibility:visible}
+  #rptHost{position:absolute;left:0;top:0;width:100%}
+  .rpt-toolbar,.rpt-noprint{display:none!important}
+  .rpt-scroll{background:#fff;padding:0;overflow:visible}
+  .rpt-scroll .page{margin:0;box-shadow:none;page-break-after:always}
+  .rpt-scroll .page:last-child{page-break-after:auto}
+  @page{size:A4;margin:0}
+}
+/* 保存条：不用 sticky，避免遮挡下方内容；改为普通块 + 顶部描边 */
+.cfg-sticky{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.cfg-sticky .form-actions{margin:0}
+
+
+/* ===== 报告 A4 版式（源自电梯报告生成器） ===== */
+/* A4 Page Setup */
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 16mm;
+  margin: 0 auto 14px;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  position: relative;
+  font-size: 12px;
+  color: #000;
+}
+.page-header {
+  position: absolute; top: 6mm; left: 16mm;
+  font-size: 10px; color: #666;
+}
+.page-footer {
+  position: absolute; bottom: 8mm; left: 0; right: 0;
+  text-align: center; font-size: 10px; color: #333;
+}
+
+/* Cover Page */
+.cover-info {
+  position: absolute; top: 16mm; right: 16mm;
+  text-align: left; font-size: 11px;
+  line-height: 1.8;
+}
+.cover-info .row { display: flex; gap: 8px; }
+.cover-info .lbl { width: 70px; color: #333; }
+.cover-info .val { min-width: 120px; border-bottom: 1px solid #999; }
+.cover-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 38mm;
+  letter-spacing: 4px;
+}
+.cover-subtitle {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 6mm;
+  letter-spacing: 2px;
+}
+.cover-form {
+  margin-top: 32mm;
+  font-size: 13px;
+}
+.cover-form .row {
+  display: flex; align-items: baseline;
+  margin-bottom: 8mm;
+  padding-left: 30mm;
+}
+.cover-form .lbl {
+  width: 100px;
+  letter-spacing: 2px;
+  font-weight: 500;
+}
+.cover-form .val {
+  flex: 1;
+  border-bottom: 1px solid #000;
+  padding-bottom: 1px;
+  min-height: 18px;
+}
+
+/* Page 4: Information table */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6mm;
+}
+.info-table th, .info-table td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  vertical-align: middle;
+  text-align: center;
+  height: 22px;
+}
+.info-table .lbl { background: #fff; width: 18%; }
+.info-table .val { text-align: left; padding-left: 8px; width: 32%; }
+.info-title {
+  text-align: center; font-size: 18px; font-weight: 700;
+  margin-bottom: 4mm;
+}
+.remark-row td {
+  height: 80px;
+  text-align: left;
+  vertical-align: top;
+  padding: 6px 8px;
+  line-height: 1.7;
+}
+.placeholder-large {
+  font-size: 28px; font-weight: 700;
+  text-align: center; margin-top: 100mm;
+  color: #999;
+  letter-spacing: 20px;
+}
+
+/* Page 5-11: Inspection items table */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-top: 4mm;
+}
+.items-table th, .items-table td {
+  border: 1px solid #000;
+  padding: 4px 5px;
+  vertical-align: top;
+}
+.items-table th {
+  text-align: center;
+  font-weight: 500;
+  background: #f5f5f5;
+  height: 22px;
+}
+.items-table .col-no { width: 5%; text-align: center; }
+.items-table .col-code { width: 13%; text-align: center; }
+.items-table .col-name { width: 14%; text-align: center; }
+.items-table .col-content { width: 50%; }
+.items-table .col-result { width: 8%; text-align: center; font-weight: 700; font-size: 13px; }
+.items-table .col-note { width: 10%; text-align: center; }
+.section-header { display: block; font-weight: 700; text-align: center; background: #eef2ff; padding: 2px 6px; margin-bottom: 2px; border-radius: 2px; font-size: 11px; }
+
+.items-table td .sub {
+  display: block;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.items-table td .sub:last-child { margin-bottom: 0; }
+
+/* Page 11 footer: Notes */
+.notes {
+  margin-top: 6mm;
+  font-size: 11px;
+  line-height: 1.7;
+  padding: 4mm 0;
+}
+.notes p { margin-bottom: 4px; text-indent: 0; }
+.notes .note-title { font-weight: 700; }
+
+/* Appendix tables */
+.appendix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 2mm;
+}
+.appendix-table th, .appendix-table td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  text-align: center;
+  height: 22px;
+}
+.appendix-table th {
+  background: #f5f5f5;
+  font-weight: 500;
+}
+.appendix-title {
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 6mm;
+  margin-bottom: 1mm;
+}
+.appendix-subtitle {
+  font-size: 10px;
+  margin-bottom: 1mm;
+}
+.appendix-unit {
+  text-align: right;
+  font-size: 10px;
+  margin-bottom: 1mm;
+}
+
+/* Page instructions */
+.instructions {
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 6mm;
+}
+.instructions h2 {
+  text-align: center; font-size: 18px; font-weight: 700;
+  margin-bottom: 10mm;
+}
+.instructions ol { list-style: none; padding-left: 0; }
+.instructions ol li {
+  margin-bottom: 6px;
+  text-indent: 0;
+}
+
+/* Print */
+@media print {
+  body { background: #fff; }
+  .toolbar { display: none; }
+  .page {
+    margin: 0;
+    box-shadow: none;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
+
+.fill-blank {
+  display: inline-block;
+  min-width: 60px;
+  border-bottom: 1px solid #000;
+  text-align: center;
+  font-weight: 700;
+}
+.parsed-display {
+  background: #f0f5ff; padding: 6px 10px; border-radius: 4px;
+  font-size: 12px; margin-top: 6px;
+  display: inline-block;
+}
 </style>
 </head>
 <body>
@@ -995,6 +1290,19 @@ function renderTaskDetailHtml(t){
   if(t.postponedDates&&t.postponedDates.length){
     html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
   }
+  var _cn=getTaskCfgs(t.id).length;
+  html+='<div style="display:flex;gap:8px;margin-bottom:14px">'
+    +'<button class="btn sec" style="flex:1" onclick="openCfgForm(\''+t.id+'\',null)">'
+    +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录配置</button>'
+    +'<button class="btn '+('')+'" style="flex:1;background:'+(_cn?'var(--acc)':'var(--card)')+';color:'+(_cn?'#fff':'var(--acc)')+';border:1px solid '+(_cn?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
+    +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
+    +'查看配置'+(_cn?'（'+_cn+'）':'')+'</button></div>';
+  if(_cn){
+    html+='<div style="display:flex;gap:8px;margin-bottom:16px">'
+      +'<button class="btn-report green" onclick="quickReport(\''+t.id+'\')">'
+      +'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
+      +'一键生成检验报告</button></div>';
+  }
   html+='<div class="form-actions">'
     +'<button class="btn" onclick="openTaskForm(\''+t.id+'\')">编辑任务</button>'
     +(t.date?'<button class="btn warn" onclick="cancelSchedule(\''+t.id+'\')">取消安排</button>':'')
@@ -1003,14 +1311,26 @@ function renderTaskDetailHtml(t){
     +'</div>';
   return html;
 }
+function cfgHeadBtns(t){
+  var n=getTaskCfgs(t.id).length;
+  return '<button class="btn sec sm" onclick="openCfgForm(\''+t.id+'\',null)">'
+    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录配置</button>'
+    +'<button class="btn sm" style="background:'+(n?'var(--acc)':'var(--card)')+';color:'+(n?'#fff':'var(--acc)')+';border:1px solid '+(n?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
+    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
+    +'查看配置'+(n?' <b style="font-weight:700">'+n+'</b>':'')+'</button>';
+}
 function openTask(id){
   var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
   STATE.editingId=id;
   var layer=openSheet(taskTitle(t), renderTaskDetailHtml(t));
   layer.__type='taskDetail'; layer.__id=t.id;
+  var he=layer.querySelector('.head-extra');
+  if(he) he.innerHTML=cfgHeadBtns(t);
   layer.__refresh=function(){
     layer.querySelector('.sheet-body').innerHTML=renderTaskDetailHtml(t);
     layer.querySelector('.st').textContent=taskTitle(t);
+    var h2=layer.querySelector('.head-extra');
+    if(h2) h2.innerHTML=cfgHeadBtns(t);
   };
 }
 function openTaskForm(idOrDate){
@@ -1663,6 +1983,14 @@ function openSettings(){
       +'<button class="del" onclick="delType(\''+esc(k)+'\')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button></div>';
   });
   html+='<div class="type-add"><input type="text" id="newTypeName" placeholder="新类别，如：观光车定期检验"><button class="btn sm" onclick="addType()">添加</button></div></div>';
+  var _cfgTotal=STATE.tasks.reduce(function(n,t){return n+((t.cfgs&&t.cfgs.length)?t.cfgs.length:0);},0);
+  html+='<div class="set-group"><h4>电梯配置</h4>'
+    +'<div style="font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:10px">'
+    +'当前共 <b style="color:var(--txt)">'+_cfgTotal+'</b> 份配置，挂在各电梯项目上。<br>'
+    +'打开任务 → 右上角「记录配置」新增，「查看配置」查看与生成报告。</div>'
+    +'<button class="btn sec" style="width:100%" onclick="openCfgImportView()">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>'
+    +'从「我的工作台」导入历史配置</button></div>';
   html+='<div class="set-group"><h4>报告阶段 · 外围色条</h4>';
   Object.keys(STATUS).forEach(function(k){
     html+='<div class="color-row"><span class="nm">'+STATUS[k]+'</span>'
@@ -1966,6 +2294,1458 @@ function switchTab(tab){
   if(tab==='batch'){ cal.classList.add('hide'); side.classList.remove('show'); side.classList.add('hide'); bv.style.display='block'; STATE.batch=true; STATE.batchSel={}; renderBatchView(); tb.classList.add('on'); }
 }
 document.getElementById('confirmMask').addEventListener('click',function(e){ if(e.target===this) closeConfirm(); });
+
+
+/* ============================================================
+ * 报告引擎（源自「电梯报告生成器」，已参数化为 RPT.build(CFG, host)）
+ * ============================================================ */
+const ITEMS = [
+  // Item 1
+  {
+    code: 'A1.1.4', name: '使用资料', star: false,
+    subs: [
+      '审查使用单位是否提供以下适用于受检电梯的资料：',
+      '（1）使用登记证，其内容与实物相符',
+      '（2）日常维护保养合同，由使用单位与取得相应许可的单位签订',
+      '（3）应急救援管理制度和专用钥匙管理制度'
+    ]
+  },
+  // Item 2
+  {
+    code: 'A1.2.1.1', name: '通道及照明', star: false,
+    subs: [
+      '（1）通往机器空间的通道保持通畅，相关人员能够安全、方便、无阻碍地使用；如果通往机器空间的通道高出楼板所到平面不超过4.0m，可以使用固定的梯子作为通道',
+      '（2）进入机器空间的门附近的通道设有永久性电气照明'
+    ]
+  },
+  // Item 3
+  {
+    code: 'A1.2.2.1', name: '井道照明', star: false,
+    subs: [
+      '（1）井道内设有永久性电气照明，当部分封闭的井道附近有足够的电气照明时，井道内可以不设照明'
+    ]
+  },
+  // Item 4
+  {
+    code: '*A1.2.2.17', name: '缓冲器', star: true,
+    subs: [
+      '（1）缓冲器无松动、明显倾斜、断裂、塑性变形、剥落、破损、严重锈蚀等现象',
+      '（2）耗能型缓冲器液位正确，验证柱塞复位的电气安全装置功能有效',
+      '（3）对重缓冲器附近设有清晰的对重越程距离标识',
+      '（4）当轿厢位于顶层端站平层位置时，对重越程撞板与其缓冲器顶面间的距离不超过对重越程距离标识上标注的最大允许值'
+    ]
+  },
+  // Item 5
+  {
+    code: 'A1.2.3.3(3)', name: '■接地故障保护措施', star: false,
+    subs: [
+      '含有电气安全装置的电路发生接地故障时，驱动主机立即停止运转，或者在第一次正常停止运转后，能够防止驱动主机再启动；恢复电梯运行只能通过手动复位'
+    ]
+  },
+  // Item 6
+  {
+    code: 'A1.2.3.4', name: '☆门旁路装置', star: false,
+    subs: [
+      '（1）层门和轿门旁路装置上或者附近标明"旁路"字样',
+      '（2）处于旁路状态时，能够旁路层门关闭触点、层门门锁触点、轿门关闭触点、轿门门锁触点，但不能同时旁路层门和轿门的触点；对于手动层门，不能同时旁路层门门关闭触点和层门门锁触点',
+      '（3）处于旁路状态时，取消正常运行（包括自动门的任何运行），并且只有在检修运行控制或者紧急电动运行控制下电梯才能运行，轿厢上的听觉信号和频闪的闪烁灯在运行期间起作用',
+      '（4）提供独立的监控信号证实轿门处于关闭位置'
+    ]
+  },
+  // Item 7
+  {
+    code: '*A1.2.3.6', name: '☆制动器状态监测功能', star: true,
+    subs: [
+      '检查其是否能监测制动器的每组制动动力或者每次动作时每组机械部件的正确动作（松开或者制动），当监测到失效时，是否能够防止电梯的正常运行'
+    ]
+  },
+  // Item 8
+  {
+    code: 'A1.2.3.9', name: '紧急电动运行控制', star: false,
+    subs: [
+      '（1）紧急电动运行控制功能有效',
+      '（2）操作紧急电动运行开关后，依靠持续按压按钮来控制轿厢运行，按钮上或者其附近清晰标明运行方向；进行紧急电动运行操作时，易于观察轿厢是否在开锁区域'
+    ]
+  },
+  // Item 9
+  {
+    code: '*A1.2.3.10(1)', name: '紧急操作和动态测试功能', star: true,
+    subs: ['紧急操作和动态测试功能有效']
+  },
+  // Item 10
+  {
+    code: '*A1.2.3.11', name: '紧急报警装置（对讲系统）', star: true,
+    subs: [
+      '轿厢内的紧急报警装置采用由应急电源供电的双向对讲系统与救援服务持续联系；如果电梯行程大于30m或者轿厢内与进行紧急操作处之间无法直接对话，则在轿厢内和进行紧急操作处还应设置由应急电源供电的双向对讲系统或者类似装置'
+    ]
+  },
+  // Item 11
+  {
+    code: 'A1.2.4.1', name: '★驱动主机停止装置', star: false,
+    subs: [
+      '检查在驱动主机附近1m之内是否设有可以直接接近的主开关或者停止装置，并且功能有效'
+    ]
+  },
+  // Item 12
+  {
+    code: '*A1.2.4.3', name: '制动器', star: true,
+    subs: [
+      '★（1）能够从井道外独立地测试每个制动组',
+      '（2）制动器动作灵活，制动时制动闸瓦（制动钳）紧密、均匀地贴合在制动盘（制动盘）上，电绕运行时制动闸瓦（制动钳）于制动轮（制动盘）不发生摩擦；制动闸瓦（制动钳）以及制动轮（制动盘）工作面上无油污',
+      '（3）对于需要定期拆解保养的柱塞式电磁铁型式的杠杆鼓式制动器，维护保养单位按照受检电梯制造单位（或型式试验机构）的要求进行了拆解保养，并且提供了拆解保养过程的视频或者照片等见证资料'
+    ]
+  },
+  // Item 13
+  {
+    code: '*A1.2.4.7', name: '手动紧急操作装置', star: true,
+    subs: [
+      '（1）对于曳引与强制驱动电梯，能够通过持续手动操作的机械装置或者由自动充电的紧急电源供电的电气装置打开驱动主机制动器，并且该装置的失效不会导致制动功能的失效',
+      '（2）手动松开制动器后仅在重力作用下断绳（运载装置）不能移动时，能够通过手动机械装置、独立于主电源供电的手动操作电动装置或者其他措施将轿厢（运载装置）移动到附近层站',
+      '（3）如果电梯的移动可能带动手动机械装置，该装置是平滑和无噪音的轮子',
+      '▲（4）如果手动机械装置可以从驱动主机上拆卸或者取出，设有靠近在其连接到驱动主机时起作用的电气安全装置',
+      '（7）在紧急操作处，易于检查轿厢是否在开锁区域'
+    ]
+  },
+  // Item 14
+  {
+    code: 'A1.2.5.1', name: '■钢丝绳', star: false,
+    subs: [
+      '（1）无变形、绳股挤出、扭结、部分压扁、弯折、严重锈蚀、缺绳麻现象',
+      '（2）一个抢厢内的断丝数不超过TSG T7001-2023中表A1-3所列阈值'
+    ]
+  },
+  // Item 15
+  {
+    code: 'A1.2.5.2', name: '■包覆带', star: false,
+    subs: [
+      '（1）无包覆带变形（如鼓包、压痕、折痕、凹陷等）、包覆带承载体外露或者剥落、承载绳断裂等达到报废条件的现象',
+      '★（2）设有监测每根包覆带等承载体的装置，当检测到任一根承载带被切断时，能够防止电梯的下一次正常启动',
+      '★（3）用于查看包覆带使用时间或者电梯启动次数的装置完好'
+    ]
+  },
+  // Item 16
+  {
+    code: 'A1.2.5.3', name: '■悬挂装置端部固定', star: false,
+    subs: [
+      '悬挂装置的端固定部件无裂纹、松动等现象，端接装置的弹簧、螺母、开口销等链接部件无缺损'
+    ]
+  },
+  // Item 17
+  {
+    code: 'A1.2.5.6', name: '异常伸长保护措施', star: false,
+    subs: [
+      '如果轿厢（运载装置）悬挂在包覆带或者两根钢丝绳上，检查当任一根悬挂装置发生异常相对伸长时，是否能够通过电气安全装置防止电梯的正常运行'
+    ]
+  },
+  // Item 18
+  {
+    code: '*A1.2.5.7', name: '非金属材质反绳轮', star: true,
+    subs: [
+      '（1）电梯的额定速度不大于1.75m/s',
+      '（2）返绳轮上或者附近设有永久固定和清晰的标识，标明返绳轮制造单位名称或者商标、制造日期、维护保养要求（如润滑方法与周期）及报废条件',
+      '（3）维护保养单位按照要求进行了维护保养，并且提供了维护保养过程的视频或者照片等见证资料',
+      '（4）在进行A1.3条所述的各项试验前、后，均未出现明显绕或磨损（带槽）、轮及轮轴偏移、固定结构变形等现象',
+      '对于未按照条款（1）和第（2）项对非金属材质反绳轮进行过监督检验的电梯，应当至少符合条款（3）和第（4）项的要求'
+    ]
+  },
+  // Item 19
+  {
+    code: 'A1.2.6.3(3)', name: '轿厢安全窗', star: false,
+    subs: ['安全窗的锁紧由电气安全装置验证，该装置动作后使电梯停止运行']
+  },
+  // Item 20
+  {
+    code: 'A1.2.6.4(3)', name: '轿厢安全门', star: false,
+    subs: ['安全门的锁紧由电气安全装置验证']
+  },
+  // Item 21
+  {
+    code: 'A1.2.6.6', name: '对重（平衡重）块', star: false,
+    subs: [
+      '（1）对重（平衡重）无松动、位移等现象',
+      '（2）具有能够快速识别对重（平衡重）块数量的措施（例如标明数量或者总高度），并且该措施不会被混淆',
+      '（3）非金属材质对重（平衡重）块（架）上轿厢上或者轿地坑内有清晰的标识，标明对重（平衡重）块制造单位名称或者商标和报废条件',
+      '（4）在进行本附件A1.3条所述的各项试验前、后，对重（平衡重）块及其包装物均无影响产品性能的开裂、破损、剥落、腐蚀等现象',
+      '对于未按照条款（3）项对非金属材质对重（平衡重）块进行过监督检验的电梯，应当至少符合条款（1）、第（2）、第（4）项的要求'
+    ]
+  },
+  // Item 22
+  {
+    code: 'A1.2.6.8', name: '轿厢照明及通风', star: false,
+    subs: [
+      '（1）轿厢正常照明和通风有效',
+      '（2）在正常照明电源发生故障的情况下，由紧急电源供电的应急照明能够自动投入工作'
+    ]
+  },
+  // Item 23
+  {
+    code: 'A1.2.6.9', name: '★轿厢语音播报系统', star: false,
+    subs: [
+      '检查在停电、故障停梯、轿厢位置校正（再平层除外）、自动救援操作装置启动以及按受火警信号退出正常服务时，轿厢语音播报系统是否进行语音播报，提示、安抚轿内乘客'
+    ]
+  },
+  // Item 24
+  {
+    code: '*A1.2.7.2', name: '■门间隙', star: true,
+    subs: [
+      '（1）门扇之间及门扇与立柱、门楣和地坎之间的间隙，对于乘客电梯不大于6mm；对于载货电梯不大于10mm',
+      '（2）在水平滑动层门门和折叠层门最后闭合的门扇方向，以150N的力施加在一个最不利的点，本条（1）项所述的间隙对于旁开门不大于30mm，对于中分门其总和不大于45mm'
+    ]
+  },
+  // Item 25
+  {
+    code: '*A1.2.7.4', name: '门再开启保护装置', star: true,
+    subs: [
+      '检查自动水平滑动门关闭过程中人员通过入口时，保护装置是否能够自动使门重新开启',
+      '对于未按照前款要求对门再开启保护装置进行过监督检验的电梯，检查当人员通过入口被正在关闭的门扇撞击或者被撞击时，保护装置是否能够使门重新开启'
+    ]
+  },
+  // Item 26
+  {
+    code: '*A1.2.7.5', name: '门的运行与导向', star: true,
+    subs: [
+      '（1）层门和轿门正常运行时无脱轨、机械卡阻或者错位现象',
+      '（2）层门导向装置失效时，层门保持装置能够使层门保持在原有位置',
+      '★（3）在层门底部保持装置上或者其附近设有识别保持装置最小啮合深度的标识，并且层门底部保持装置的啮合深度不小于标识所示的最小啮合深度'
+    ]
+  },
+  // Item 27
+  {
+    code: '*A1.2.7.6', name: '自动关闭层门装置', star: true,
+    subs: [
+      '（1）在轿门驱动层门的情况下，当轿厢在开锁区域之外时，自动关闭层门装置能够使开启的层门关闭',
+      '（2）自动关闭层门装置采用重块时，其防止重块坠落的措施保持有效；对于防爆电梯，无火花措施保持完好'
+    ]
+  },
+  // Item 28
+  {
+    code: '*A1.2.7.7', name: '紧急开锁', star: true,
+    subs: [
+      '（1）每个层门均能够被专用钥匙从外面打开；紧急开锁后，在层门闭合时门锁装置未保持在开锁位置',
+      '★（2）如果只能通过层门进入底坑，则从坑底梯井并且在距离1.80m内和最大水平距离0.80m范围内能够安全地触及门锁，或者能够通过永久设置的装置从底坑中打开层门'
+    ]
+  },
+  // Item 29
+  {
+    code: '*A1.2.7.8', name: '门的锁紧与闭合', star: true,
+    subs: [
+      '（1）锁紧动作由重力、永久磁铁或者弹簧来产生和保持，即使永久磁铁或者弹簧失效，重力也不能导致开锁',
+      '（2）轿厢（运载装置）在锁紧元件啮合不小于7mm时才能启动',
+      '（3）检查层门、轿门门锁状态的电气安全装置功能有效',
+      '（4）每个层门和轿门的闭合均由电气安全装置验证；如果活动门是由数个间接机械连接的门扇组成，则未被锁住的门扇上设有电气安全装置以验证其闭合状态；与门的驱动部件直接机械连接的轿门则可以不设置电气安全装置'
+    ]
+  },
+  // Item 30
+  {
+    code: '*A1.3.1', name: '应急救援试验', star: true,
+    sections: [
+      { name: '', subs: [
+        '（1）检查机房内或者紧急和测试操作屏上是否设有清晰的应急救援程序',
+        '（2）对于曳引驱动乘客电梯和曳引驱动载货电梯，检查建筑物内的救援通道是否保持通畅，紧急救援人员是否能够无阻碍地抵达实施紧急操作的位置，以及各层站处。<br>注：对于《电梯监督检验和定期检验规则-曳引与强制驱动电梯》(TSG T7001-2009, 含第1、第2修改单)，实施前监督检验合格的和在现有建筑物中增设的曳引驱动乘客电梯和曳引驱动载货电梯，因建筑物结构等原因而难以达到本条件中有关无阻碍地抵达各层站处这一要求时，如果使用单位采取了有效措施（例如：保证救援人员可以通过钥匙或者强制手段打开通往电梯层站的门窗等阻碍，及时到达实施救援的层站），并且按规定开展了应急救援（演练）并且取得了相关方面的同意，同时符合本条件中的其他要求，可以判定本条的检验结果为符合要求。',
+        '（4）在空载工况下，按照本条（第1）项所述的应急救援程序实施操作，观察是否能够安全、及时地解救被困人员'
+      ]}
+    ]
+  },
+  // Item 31
+  {
+    code: '*A1.3.2', name: '平衡系数测试', star: true,
+    subs: [
+      '对平衡系数进行确认或者测试，判定其是否在0.40~0.50之间，并且符合制造（改造）单位的设计值；对于制造单位或者未按照本规则对平衡系数进行过监督检验的电梯，判定其是否在0.40~0.50之间，或者符合制造（改造）单位的设计值',
+      '注1：只有当本条检验结果为符合时才可以进行后续各项试验',
+      '注2：定期检验时，发现轿厢、对重或者其他部件（如补偿装置）的重量发生变化，并且可能导致平衡系数发生变化的，以及应当定期检验需要进行A1.3.12.2条所述的试验，应当测试平衡系数'
+    ]
+  },
+  // Item 32
+  {
+    code: 'A1.3.3', name: '轿厢超载保护装置试验', star: false,
+    subs: [
+      '对于当次定期检验需要进行A1.3.12.2条所述试验的电梯，或者发现轿厢自重发生改变可能影响轿厢超载保护装置有效性的情况，采用在轿厢内施加载荷的方式进行轿厢超载保护装置试验，观察是否接近在轿厢内载荷达到110%额定载重量时能够检测到超载，防止电梯正常启动及再平层（对于液压驱动电梯，防止电梯正常启动），并且轿厢内有所可观和视觉警示提示，自动门完全开启，手动门保持在未锁紧状态。',
+      '对于未按照前款要求对轿厢超载保护装置进行过监督检验的电梯，允许轿厢内只提供听觉警示或者视觉警示信号。',
+      '注：本条所述的其他情况下，可以采用模拟超载状态的方式进行验证'
+    ]
+  },
+  // Item 33
+  {
+    code: '*A1.3.4', name: '轿厢（运载装置）限速器-安全钳试验', star: true,
+    sections: [
+      { name: 'A1.3.4.1 限速器', subs: [
+        '（1）各调节部位封记完好，运转时无碰擦、卡阻、转动不灵活等现象，动作正常',
+        '（2）动作速度符合要求'
+      ]},
+      { name: 'A1.3.4.2 电气安全装置', subs: [
+        '（1）限速器或者其他装置上设置在轿厢（运载装置）上行、下行速度达到限速器动作速度之前的电气安全装置',
+        '（2）对于安全钳释放后限速器不能自动复位的，用于验证限速器复位状态的电气安全装置',
+        '（3）用于检查限速器绳断裂或者过分伸长的电气安全装置',
+        '（4）轿厢（运载装置）上设置的在轿厢（运载装置）安全钳动作以前或者同时使驱动主机停止运转的电气安全装置'
+      ]},
+      { name: 'A1.3.4.3 联动试验', subs: [
+        '轿厢空载，以检修速度下行工况进行限速器-安全钳联动试验，观察限速器、安全钳动作是否可靠。试验后，未出现对电梯正常使用有不利影响的损坏（允许更换摩擦部件和玻璃部件）'
+      ]}
+    ]
+  },
+  // Item 34
+  {
+    code: '*A1.3.5', name: '对重（平衡重）限速器-安全钳试验', star: true,
+    sections: [
+      { name: 'A1.3.5.1<br>限速器及其电气安全装置', subs: [
+        '检查限速器及其电气安全装置是否符合A1.3.4.1条和A1.3.4.2条（1）、（3）项的要求'
+      ]},
+      { name: 'A1.3.5.2<br>联动试验', subs: [
+        '轿厢空载，以检修速度上行工况进行限速器-安全钳联动试验（注：对于采用限速器以外方式触发的安全钳，按照电梯制造（改造）单位的要求进行试验），观察限速器、安全钳动作是否可靠。试验后，未出现对电梯正常使用有不利影响的损坏（允许更换摩擦部件）'
+      ]}
+    ]
+  },
+  // Item 35
+  {
+    code: '*A1.3.6', name: '缓冲器试验', star: true,
+    subs: [
+      '轿厢空载，以检修速度运行的工况使缓冲器被压缩，轿厢（运载装置）、对重停在其上再离开后，观察缓冲器是否未出现对电梯正常使用有不利影响的损坏（如明显倾斜、断裂、塑性变形、剥落、破损等）'
+    ]
+  },
+  // Item 36
+  {
+    code: '*A1.3.7', name: '▲轿厢上行超速保护装置试验', star: true,
+    sections: [
+      { name: 'A1.3.7.1<br>试验方法', subs: [
+        '检查控制柜或者紧急和测试操作屏上是否标有轿厢上行超速保护装置动作试验方法'
+      ]},
+      { name: 'A1.3.7.2<br>电气安全装置', subs: [
+        '检查轿厢上行超速保护装置上的电气安全装置功能是否有效'
+      ]},
+      { name: 'A1.3.7.3<br>监测功能 ★', subs: [
+        '采用存在内部冗余的制动器作为轿厢上行超速保护装置减缓部件的，检查当制动器机械部件动作（松开或者制动）失效或者制动力不足时，是否能够防止电梯正常运行'
+      ]},
+      { name: 'A1.3.7.4<br>试验', subs: [
+        '按照本附件A1.3.7.1条所述的试验方法进行动作试验，观察轿厢上行超速保护装置动作是否可靠；对于配有轿厢上行超速保护装置但是未按照本附件A1.3.7条要求对其进行过监督检验并且不符合本附件A1.3.7.1条要求的电梯（不要其必须符合该要求），定期检验时可以进行轿厢上行、检修速度上行的工况进行动作试验'
+      ]}
+    ]
+  },
+  // Item 37
+  {
+    code: '*A1.3.8', name: '☆轿厢意外移动保护装置试验', star: true,
+    sections: [
+      { name: 'A1.3.8.1<br>试验方法', subs: [
+        '检查控制柜或者紧急和测试操作屏上是否标有轿厢意外移动保护装置动作试验方法'
+      ]},
+      { name: 'A1.3.8.2<br>电气安全装置', subs: [
+        '检查轿厢意外移动保护装置上的电气安全装置功能是否有效'
+      ]},
+      { name: 'A1.3.8.3<br>监测功能', subs: [
+        '采用存在内部冗余的制动器作为轿厢意外移动保护装置制作部件的，检查当制动器机械部件动作（松开或者制动）失效或者制动力不足时，是否能够使轿厢门和层门，并且能够防止电梯正常运行'
+      ]},
+      { name: 'A1.3.8.4<br>试验', subs: [
+        '按照A1.3.8.1条所述的试验方法进行动作试验，观察轿厢意外移动保护装置动作是否可靠'
+      ]}
+    ]
+  },
+  // Item 38
+  {
+    code: '*A1.3.11.1', name: '空载工况曳引能力试验', star: true,
+    subs: [
+      '（1）轿厢空载，当对重压在缓冲器上而驱动主机按电梯上行方向运转时，观察悬挂装置是否相对曳引轮打滑，或者驱动主机停止运转',
+      '（2）轿厢空载，以额定速度上行至行程上部，切断电动机与制动器供电，观察轿厢（运载装置）是否完全停止'
+    ]
+  },
+  // Item 39
+  {
+    code: '*A1.3.12.2', name: '125%额定载重量制动试验', star: true,
+    subs: [
+      '轿厢内装125%额定载重量的载荷，以额定速度下行至行程下部，切断电动机与制动器供电，观察制动器是否能够使驱动主机停止运转，并且轿厢及其附层部件和导轨等无明显变形和损坏',
+      '注：对于按照4.1条第（2）项规定应当每年进行定期检验的曳引驱动乘客电梯，以安装监督检验合格日期（按照本规则进行改造监督检验的，以该改造监督检验合格日期）为准，在第18年进行一次A1.3.12.2条所述的试验，其后每6年进行一次'
+    ]
+  },
+  // Item 40
+  {
+    code: 'A1.3.13', name: '运行试验', star: false,
+    subs: [
+      '轿厢空载下运行，观察轿厢、楼层显示等信号系统是否功能有效、指示正确、动作无误；轿厢是否平层良好，无异常现象发生'
+    ]
+  }
+];
+
+function rptParseState(CFG){
+  var map = {
+    '超老':   { yr: 2003, b2005: true,  b2017: true,  b2023: true,  over15: true  },
+    '老':     { yr: 2013, b2005: false, b2017: true,  b2023: true,  over15: false },
+    '新':     { yr: 2020, b2005: false, b2017: false, b2023: true,  over15: false },
+    '超新':   { yr: 2025, b2005: false, b2017: false, b2023: false, over15: false },
+    '超十五年':{ yr: 2009, b2005: false, b2017: true,  b2023: true,  over15: true  }
+  };
+  var m = map[CFG.elevClass] || map['新'];
+  var tags = [];
+  if (m.b2005) tags.push('超老 ▲');
+  if (m.over15) tags.push('超15年 ■');
+  if (m.b2017) tags.push('2017前 ☆豁免');
+  if (m.b2023) tags.push('旧规 ★豁免');
+  return {
+    year: m.yr, machineRoom: CFG.machineRoom, usage: CFG.usageType,
+    isBefore2005: m.b2005, isBefore2017: m.b2017, isBefore2023: m.b2023,
+    isOver15: m.over15, tagText: tags.join(' / ')
+  };
+}
+
+function decide(CFG) {
+  var state = rptParseState(CFG);
+  const year = state.year;
+  const room = state.machineRoom;
+  const usage = state.usage;
+  const isBefore2005 = state.isBefore2005;
+  const isBefore2017 = state.isBefore2017;
+  const isBefore2023 = state.isBefore2023;
+  const isOver15 = state.isOver15;
+  const isInorg = room === '无机房';
+  const isCargo = usage === '货梯';
+  
+  const hasBelt = CFG.coatedBelt === '有';
+  const hasEmergElec = CFG.emergElec === '有';
+  const isDrumBrake = CFG.brakeStyle === '鼓式制动器';
+  const hasHandWheel = CFG.handWheel === '有';
+  const hasGovReset = CFG.govReset === '有';
+  const hasAscOver = CFG.ascOverspeed === '有';
+  const hasUCMP = CFG.ucmp === '有';
+  const hasCWTSafety = CFG.cwtSafety === '有';
+  const hasSafeWindow = CFG.safeWindow === '有';
+  const bufferType = CFG.bufferType;
+  const sheaveMat = CFG.sheaveMat;
+  const cwtCount = CFG.cwtCount || '30';
+  const brakeTest = CFG.brakeTest || '/';
+  
+  // ☆豁免：仅2017年前的老电梯才豁免空心五角星项目
+  const starExempt = isBefore2017;
+  // ★豁免：未按TSG T7001-2023监督检验的可豁免（旧规合同 ≈ 2024年前）
+  const diamondExempt = isBefore2023;
+  // ▲豁免：2005年前超老电梯可豁免三角项目
+  const triangleExempt = isBefore2005;
+  // ■超15年：超15年才检验
+  const squareRequired = isOver15;
+  
+  function val(symbol, condition) {
+    if (symbol === '√') return condition ? '√' : '×';
+    return condition ? '√' : '-';
+  }
+  
+  return [
+    { code: 'A1.1.4', name: '使用资料', results: ['√','√','√'] },
+    { code: 'A1.2.1.1', name: '通道及照明', results: ['√','√'] },
+    { code: 'A1.2.2.1', name: '井道照明', results: ['√'] },
+    { 
+      code: '*A1.2.2.17', name: '缓冲器', 
+      results: bufferType === '耗能型' ? ['√','√','√','√'] : ['√','-','√','√']
+    },
+    { 
+      code: 'A1.2.3.3(3)', name: '■接地故障保护措施', 
+      results: [isOver15 ? '√' : '-'] 
+    },
+    { 
+      code: 'A1.2.3.4', name: '☆门旁路装置', 
+      results: starExempt ? ['-','-','-','-'] : ['√','√','√','√'] 
+    },
+    { 
+      code: '*A1.2.3.6', name: '☆制动器状态监测功能', 
+      results: [starExempt ? '-' : '√'] 
+    },
+    { 
+      code: 'A1.2.3.9', name: '紧急电动运行控制', 
+      results: (hasEmergElec || isInorg) ? ['√','√'] : ['-','-'] 
+    },
+    { 
+      code: '*A1.2.3.10(1)', name: '紧急操作和动态测试功能', 
+      results: [isInorg ? '√' : '-'] 
+    },
+    { code: '*A1.2.3.11', name: '紧急报警装置（对讲系统）', results: ['√'] },
+    { 
+      code: 'A1.2.4.1', name: '★驱动主机停止装置', 
+      results: (diamondExempt && !isInorg) ? ['-'] : ['√'] 
+    },
+    { 
+      code: '*A1.2.4.3', name: '制动器', 
+      results: [diamondExempt ? '-' : '√', '√', isDrumBrake ? '√' : '-'] 
+    },
+    { 
+      code: '*A1.2.4.7', name: '手动紧急操作装置', 
+      results: isInorg 
+        ? ['√','√','-','-','√'] 
+        : ['√','√', hasHandWheel ? '√' : '-', triangleExempt ? '-' : (hasHandWheel ? '√' : '-'), '√'] 
+    },
+    { 
+      code: 'A1.2.5.1', name: '■钢丝绳', 
+      results: hasBelt ? ['-','-'] : (isOver15 ? ['√','√'] : ['-','-']) 
+    },
+    { 
+      code: 'A1.2.5.2', name: '■包覆带', 
+      results: (isOver15 && hasBelt) 
+        ? ['√', 
+           CFG.elevClass === '超新' ? '√' : '-',
+           CFG.elevClass === '超新' ? '√' : '-']
+        : ['-','-','-'] 
+    },
+    { 
+      code: 'A1.2.5.3', name: '■悬挂装置端部固定', 
+      results: [isOver15 ? '√' : '-'] 
+    },
+    { code: 'A1.2.5.6', name: '异常伸长保护措施', results: [hasBelt ? '√' : '-'] },
+    { 
+      code: '*A1.2.5.7', name: '非金属材质反绳轮', 
+      results: sheaveMat === '非金属' ? [diamondExempt ? '-' : '√', diamondExempt ? '-' : '√', '√','√'] : ['-','-','-','-'] 
+    },
+    { 
+      code: 'A1.2.6.3(3)', name: '轿厢安全窗', 
+      results: [hasSafeWindow ? '√' : '-'] 
+    },
+    { code: 'A1.2.6.4(3)', name: '轿厢安全门', results: ['-'] },
+    { 
+      code: 'A1.2.6.6', name: '对重（平衡重）块', 
+      results: ['√', cwtCount+'块', (!diamondExempt && CFG.cwtMat === '非金属' ? '√' : '-'), '√','√'] 
+    },
+    { code: 'A1.2.6.8', name: '轿厢照明及通风', results: ['√','√'] },
+    { 
+      code: 'A1.2.6.9', name: '★轿厢语音播报系统', 
+      results: [diamondExempt ? '-' : '√'] 
+    },
+    { 
+      code: '*A1.2.7.2', name: '■门间隙', 
+      results: ['见附录1','见附录1'] 
+    },
+    { code: '*A1.2.7.4', name: '门再开启保护装置', results: ['√'] },
+    { 
+      code: '*A1.2.7.5', name: '门的运行与导向', 
+      results: diamondExempt ? ['√','√','-'] : ['√','√','√'] 
+    },
+    { 
+      code: '*A1.2.7.6', name: '自动关闭层门装置', 
+      results: ['√', CFG.doorCloseType === '重锤' ? '√' : '-'] 
+    },
+    { 
+      code: '*A1.2.7.7', name: '紧急开锁', 
+      results: diamondExempt ? ['√','-'] : ['√','√'] 
+    },
+    { 
+      code: '*A1.2.7.8', name: '门的锁紧与闭合', 
+      results: ['√','见附录2','√','√','√'] 
+    },
+    { code: '*A1.3.1', name: '应急救援试验', results: ['√','√','√'] },
+    { code: '*A1.3.2', name: '平衡系数测试', results: ['√'] },
+    { code: 'A1.3.3', name: '轿厢超载保护装置试验', results: ['√'] },
+    { 
+      code: '*A1.3.4', name: '轿厢（运载装置）限速器-安全钳试验', 
+      results: hasGovReset ? 
+        ['√','√','√','-','√','√','√'] : 
+        ['√','√','√','√','√','√','√'] 
+    },
+    { 
+      code: '*A1.3.5', name: '对重（平衡重）限速器-安全钳试验', 
+      results: hasCWTSafety ? ['√','√'] : ['-','-'] 
+    },
+    { code: '*A1.3.6', name: '缓冲器试验', results: ['√'] },
+    { 
+      code: '*A1.3.7', name: '▲轿厢上行超速保护装置试验', 
+      results: hasAscOver ? 
+        (diamondExempt ? ['√','√','-','√'] : ['√','√','√','√']) : 
+        ['-','-','-','-'] 
+    },
+    { 
+      code: '*A1.3.8', name: '☆轿厢意外移动保护装置试验', 
+      results: (starExempt && !hasUCMP) ? 
+        ['-','-','-','-'] : ['√','√','√','√'] 
+    },
+    { code: '*A1.3.11.1', name: '空载工况曳引能力试验', results: ['√','√'] },
+    { 
+      code: '*A1.3.12.2', name: '125%额定载重量制动试验', 
+      results: [CFG.doBrakeTest === '是' ? '√' : '-'] 
+    },
+    { code: 'A1.3.13', name: '运行试验', results: ['√'] },
+  ];
+}
+
+function rptBuild(CFG, host){
+  var state = rptParseState(CFG);
+  var items = decide(CFG);
+  
+  // 保存结果用于校核面板
+  window.__allResults = items.map(it => it.results);
+  
+  
+  var brakeTest = CFG.brakeTest;
+  
+  // 计算页数 (分页策略: 每页最多9项)
+  const PAGES = [];
+  let pageStart = 0;
+  const ITEMS_PER_PAGE = [9, 7, 9, 9, 9, 7]; // 第5/6/7/8/9/10/11页的项目数 (实际可能不同)
+  // 简单分页: 每页9项
+  // items 1-9 (page 5), 10-18 (page 6), 19-27 (page 7), 28-33 (page 8), 34-40 (page 9)
+  // 但我们按顺序逐页: 5-7页各8项, 8-11页, 内容长度决定
+  
+  // 实际: 1-9=page5, 10-18=page6 (注意13占多行), 19-25=page7, 26-30=page8, 31-38=page9, 39-40=page10
+  // 让我们用更简单的策略: 8项/页
+  // 9 items in page 5 (1-9)
+  // 8 items in page 6 (10-17)  
+  // 8 items in page 7 (18-25)
+  // 6 items in page 8 (26-31)
+  // 7 items in page 9 (32-38)
+  // 2 items in page 10 (39-40) + notes section
+  // Actually the template has 7 inspection pages (5-11). Let me redo:
+  // Page 5: items 1-9
+  // Page 6: items 10-16 (7 items)
+  // Page 7: items 17-25 (9 items)
+  // Page 8: items 26-30 (5 items)
+  // Page 9: items 31-34 (4 items)
+  // Page 10: items 35-38 (4 items)
+  // Page 11: items 39-40 + notes
+  
+  const pageDistribution = [
+    { start: 0, count: 9, pageNo: 5 },  // 1-9
+    { start: 9, count: 7, pageNo: 6 },  // 10-16
+    { start: 16, count: 9, pageNo: 7 }, // 17-25
+    { start: 25, count: 5, pageNo: 8 }, // 26-30
+    { start: 30, count: 4, pageNo: 9 }, // 31-34
+    { start: 34, count: 4, pageNo: 10 },// 35-38
+    { start: 38, count: 2, pageNo: 11 },// 39-40 + notes
+  ];
+  
+  let html = '';
+  
+  // ==== Page 1: 封面 ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="cover-info">
+      <div class="row"><div class="lbl">流水号：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">报告编号：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">收费金额：</div><div class="val"></div></div>
+    </div>
+    <div class="cover-title">电梯定期检验原始记录</div>
+    <div class="cover-subtitle">（适用于曳引驱动乘客与载货电梯）</div>
+    <div class="cover-form">
+      <div class="row"><div class="lbl">使用单位名称：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">设 备 代 码：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">设 备 类 别：</div><div class="val">曳引与强制驱动电梯</div></div>
+      <div class="row"><div class="lbl">设 备 品 种：</div><div class="val">${state.usage === '货梯' ? '曳引驱动载货电梯' : '曳引驱动乘客电梯'}</div></div>
+      <div class="row"><div class="lbl">检 验 日 期：</div><div class="val">&nbsp;&nbsp;&nbsp;&nbsp;至&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
+      <div class="row"><div class="lbl">检 验 结 论：</div><div class="val">整改后合格</div></div>
+      <div class="row"><div class="lbl">检 验 人 员：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">校 核 人 员：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">审 核 人 员：</div><div class="val"></div></div>
+      <div class="row"><div class="lbl">电 梯 编 号：</div><div class="val"></div></div>
+    </div>
+    <div class="page-footer">第 1 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Page 2: 填写说明 ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="instructions">
+      <h2>填写说明</h2>
+      <ol>
+        <li>1 本记录应当按照《电梯监督检验与定期检验原始记录填写规则》（以下简称填写规则）要求填写。</li>
+        <li>2 本记录应当填写齐全，不得出现空栏。</li>
+        <li>3 需填写数据的项目，应当按照填写规则要求填写在检验结果或附录处。</li>
+        <li>4 检验结果栏应当按照下列要求填写标记：<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;（1）经检验符合要求的，填写"√"；<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;（2）经检验不符合要求的，填写"×"；<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;（3）对于不适用的检验项目，填写"—"。</li>
+        <li>5 如有需要说明的情况，在备注栏中填写。</li>
+      </ol>
+    </div>
+    <div class="page-footer">第 2 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Page 3: 检验条件与仪器设备 (placeholder) ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="placeholder-large">检验条件与仪器设备</div>
+    <div class="page-footer">第 3 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Page 4: 信息表 (placeholder) ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="placeholder-large">信 息 表</div>
+    <div class="page-footer">第 4 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Pages 5-11: 检验项目表 ====
+  pageDistribution.forEach((pd, idx) => {
+    html += `<div class="page">
+      <div class="page-header">D-001-D</div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="col-no">序号</th>
+            <th class="col-code">编号</th>
+            <th class="col-name">名称</th>
+            <th class="col-content">检验内容及要求</th>
+            <th class="col-result">检验结果</th>
+            <th class="col-note">备注</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    
+    for (let i = pd.start; i < pd.start + pd.count && i < items.length; i++) {
+      const it = items[i];
+      const itemNum = i + 1;
+      const n = it.results.length;
+      const def = ITEMS[i];
+      const hasSections = def.sections && def.sections.length > 0;
+      
+      // 序号/编号/名称跨N行合并
+      let firstRow = `<tr>
+        <td class="col-no" rowspan="${n}">${itemNum}</td>
+        <td class="col-code" rowspan="${n}">${it.code}</td>
+        <td class="col-name" rowspan="${n}">${it.name}</td>`;
+      
+      if (hasSections) {
+        // 多节结构：每个子项独立一行，节内第一个子项前面加节标题
+        let resultIdx = 0;
+        for (let s = 0; s < def.sections.length; s++) {
+          const sec = def.sections[s];
+          const subCount = sec.subs.length;
+          for (let k = 0; k < subCount; k++) {
+            const isFirst = (k === 0 && s === 0);
+            const secLabel = (k === 0 && sec.name) ? `<span class="section-header">${sec.name}</span>` : '';
+            if (isFirst) {
+              firstRow += `<td class="col-content">${secLabel}${sec.subs[k]}</td>`;
+              firstRow += `<td class="col-result">${it.results[resultIdx]}</td>`;
+              firstRow += `<td class="col-note">${(itemNum === 39 && brakeTest && brakeTest !== '/') ? `最近一次试验日期：${brakeTest}` : '/'}</td></tr>`;
+            } else {
+              html += firstRow;
+              firstRow = `<tr><td class="col-content">${secLabel}${sec.subs[k]}</td>`;
+              firstRow += `<td class="col-result">${it.results[resultIdx]}</td>`;
+              firstRow += `<td class="col-note">/</td></tr>`;
+            }
+            resultIdx++;
+          }
+        }
+        html += firstRow;
+      } else {
+        // 单层结构：所有子项独立成行
+        firstRow += `<td class="col-content"><span class="sub">${def.subs[0]}</span></td>
+        <td class="col-result">${it.results[0]}</td>
+        <td class="col-note">${(itemNum === 39 && brakeTest && brakeTest !== '/') ? `最近一次试验日期：${brakeTest}` : '/'}</td></tr>`;
+        for (let j = 1; j < n; j++) {
+          firstRow += `<tr>
+            <td class="col-content">${j < def.subs.length ? `<span class="sub">${def.subs[j]}</span>` : ''}</td>
+            <td class="col-result">${it.results[j]}</td>
+            <td class="col-note">/</td></tr>`;
+        }
+        html += firstRow;
+      }
+    }
+    
+    // 在第11页加注
+    if (pd.pageNo === 11) {
+      html += `</tbody></table>
+      <div class="notes">
+        <p class="note-title">注</p>
+        <p>（1）标有"*"的项目为关键检验项目，未标有"*"的项目为一般检验项目；</p>
+        <p>（2）标有▲的项目：对于允许按照GB 7588-1995《电梯制造与安装安全规范》（2005年1月1日废止）及更早期标准生产的电梯，如果本记录A1.2.4.7条第（4）项中的电气安全装置和A1.3.7条未按照《电梯监督检验和定期检验规则-曳引与强制驱动电梯》（TSG T7001-2009）（2010年4月1日~2024年4月1日）进行过检验，并且未按照TSG T7001-2023进行过监督检验，定期检验时可以不检验；</p>
+        <p>（3）标有☆的项目：如果本记录A1.2.3.4条、A1.2.3.6条、A1.3.5条未按照《电梯监督检验和定期检验规则-曳引与强制驱动电梯》等4个安全技术规范（TSG T7001~TSG T7004，含第2、第3号修改单）（2017年10月1日~2024年4月1日），或者TSG T7001-2023进行过监督检验，定期检验时可以不检验；</p>
+        <p>（4）标有★的项目：如果本记录A1.2.4.3条第（1）项、A1.2.5.2条第（2）项和第（3）项、A1.2.6.9条、A1.2.7.5条第（3）项、A1.2.7.7条第（2）项、有机房电梯的A1.2.4.1项、A1.3.7条第（3）项未按照TSG T7001-2023进行过监督检验，定期检验时可以不检验；</p>
+        <p>（5）标有■的项目：如果本记录A1.2.3.3条第（3）项、A1.2.5.1条、A1.2.5.2条、A1.2.5.3条、A1.2.7.2条仅适用于TSG T7001-2023中4.1条第（2）项所述（超过15年）的电梯的定期检验。其余项目适用于TSGT7001-2023中4.1条第（1）和第（2）项所述电梯的定期检验。</p>
+      </div>
+      <div class="page-footer">第 ${pd.pageNo} 页 共 14 页</div>
+    </div>`;
+    } else {
+      html += `</tbody></table>
+      <div class="page-footer">第 ${pd.pageNo} 页 共 14 页</div>
+    </div>`;
+    }
+  });
+  
+  // ==== Page 12: 附录1&2 ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="appendix-title">附录1&nbsp;&nbsp;门间隙测量记录表（必要时测量记录）</div>
+    <div class="appendix-unit">单位：mm</div>
+    <table class="appendix-table">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:18%">测量项目<br>层站</th>
+          <th colspan="13">层门</th>
+          <th rowspan="2">轿门</th>
+        </tr>
+        <tr>
+          <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+          <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${['门扇与门扇','门扇与立柱','门扇与地坎','门扇与门楣','门最不利点的间隙']
+          .map(row => `<tr><td class="lbl">${row}</td>${'<td>-</td>'.repeat(13)}<td>-</td></tr>`).join('')}
+      </tbody>
+    </table>
+    
+    <div class="appendix-title" style="margin-top:6mm">附录2&nbsp;&nbsp;门锁啮合长度记录表</div>
+    <div class="appendix-subtitle">（目测，有质疑时用仪器测量并记录）</div>
+    <div class="appendix-unit">单位：mm</div>
+    <table class="appendix-table">
+      <thead>
+        <tr>
+          <th style="width:30%">层站十位数 / 个位数</th>
+          <th>0</th><th>1</th><th>2</th><th>3</th><th>4</th>
+          <th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${['-','0','1','2','3','4','5','6','7']
+          .map(row => `<tr><td class="lbl">${row}</td>${'<td>-</td>'.repeat(10)}</tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="page-footer">第 12 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Page 13: 附录3&4 ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="appendix-title">附录3&nbsp;&nbsp;电梯平衡系数测试图表（必要时测量）</div>
+    <table class="appendix-table" style="width:60%">
+      <thead>
+        <tr>
+          <th>载荷</th><th>30%</th><th>40%</th><th>45%</th><th>50%</th><th>60%</th><th>平衡系数</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">上行电流A</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td rowspan="2">-</td></tr>
+        <tr><td class="lbl">下行电流A</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+      </tbody>
+    </table>
+    
+    <div class="appendix-title" style="margin-top:6mm">附录4&nbsp;&nbsp;记事栏</div>
+    <div style="border:1px solid #000; height:120mm; margin-top:1mm;"></div>
+    <div class="page-footer">第 13 页 共 14 页</div>
+  </div>`;
+  
+  // ==== Page 14: 附录5 ====
+  html += `<div class="page">
+    <div class="page-header">D-001-D</div>
+    <div class="appendix-title" style="text-align:center;font-size:18px;font-weight:700;margin-top:4mm">附录5&nbsp;&nbsp;不符合项复查记录</div>
+    <table class="appendix-table">
+      <thead>
+        <tr>
+          <th style="width:8%">序号</th>
+          <th style="width:22%">初检不合格项目编号</th>
+          <th style="width:15%">整改方式</th>
+          <th style="width:18%">复查检验结果</th>
+          <th style="width:25%">备注</th>
+          <th style="width:12%">复查日期</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].map(i => 
+          `<tr><td>${i}</td><td>/</td><td>/</td><td>/</td><td>/</td><td>/</td></tr>`
+        ).join('')}
+      </tbody>
+    </table>
+    <div class="page-footer">第 14 页 共 14 页</div>
+  </div>`;
+  
+  host.innerHTML = html;
+  return items;
+}
+
+
+
+/* ============================================================
+ * 电梯配置模块
+ * - 每个任务（项目）可挂多份配置记录
+ * - 配置字段 = 我的工作台「电梯检验记录」18 项，其中「对重块数量」独立成区
+ * - 可直接调用报告引擎生成 14 页 A4 原始记录
+ * ============================================================ */
+
+/* ---- 字段定义（与「我的工作台」完全一致） ---- */
+var CFG_SECTIONS = [
+  { title:'基本信息', fields:[
+    {k:'elevatorType', label:'电梯类型', type:'select', hint:'决定检验配置', options:['05年前超老电梯','超15年电梯','2017年前老电梯','2017年后新电梯','2024年后超新电梯']},
+    {k:'roomType',     label:'机房类型', type:'select', options:['有机房','无机房']},
+    {k:'renovation',   label:'改造情况', type:'text', ph:'如有改造请记录', required:false},
+    {k:'contact',      label:'联系人',   type:'text', ph:'联系人姓名', required:false},
+    {k:'maintainer',   label:'维保单位', type:'text', ph:'维保单位名称', required:false}
+  ]},
+  { title:'机房设备', fields:[
+    {k:'handwheel',        label:'盘车轮', type:'select', hint:'电器开关05年1月之前可以没有', options:['有','无','不适用（05年前）']},
+    {k:'emergencyElectric',label:'紧急电动', type:'select', options:['有','无']},
+    {k:'autoReset',        label:'限速器自动复位', type:'select', options:['有','无']},
+    {k:'brakeType',        label:'制动器形式', type:'select', options:['鼓式','碟式','块式']},
+    {k:'upOverspeed',      label:'上行超速保护装置', type:'select', hint:'05年1月之前可无，异步机不能作用在高速轴', options:['有','无','不适用（05年前）','不适用（异步机高速轴）']},
+    {k:'unexpectedMove',   label:'意外移动保护装置', type:'select', options:['有','无']},
+    {k:'beltType',         label:'包覆带', type:'select', options:['有','无']}
+  ]},
+  { title:'其他部件', fields:[
+    {k:'doorCloser',   label:'层门自闭装置类型', type:'select', options:['重锤','弹簧']},
+    {k:'sheaveMaterial',label:'反绳轮材质', type:'select', options:['金属','尼龙']},
+    {k:'bufferType',   label:'缓冲器类型', type:'select', options:['液压','弹簧','聚氨酯']},
+    {k:'safetyWindow', label:'安全窗', type:'select', options:['有','无']},
+    {k:'counterSafety',label:'对重安全钳', type:'select', options:['有','无']}
+  ]}
+];
+/* 必填字段（对重块数量不在其中——它单独记录） */
+var CFG_REQUIRED = [];
+CFG_SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ if(f.required!==false) CFG_REQUIRED.push(f.k); }); });
+
+/* ---- 配置在任务上的存取 ---- */
+function getTaskCfgs(taskId){
+  var t = STATE.tasks.find(function(x){return x.id===taskId;});
+  if(!t) return [];
+  if(!Array.isArray(t.cfgs)) t.cfgs = [];
+  return t.cfgs;
+}
+function cfgUid(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+
+/* ============================================================
+ * 记录配置 —— 表单弹层
+ * ============================================================ */
+var CFG_EDIT = { taskId:null, cfgId:null };
+
+function openCfgForm(taskId, cfgId){
+  CFG_EDIT.taskId = taskId;
+  CFG_EDIT.cfgId = cfgId || null;
+  var cfgs = getTaskCfgs(taskId);
+  var cur = cfgId ? cfgs.find(function(c){return c.id===cfgId;}) : null;
+
+  /* 顶部：多配置切换条 */
+  var bar = '<div class="cfg-bar">'
+    + '<button class="cfg-chip'+(cur?'':' on')+'" onclick="openCfgForm(\''+taskId+'\',null)">＋ 新增配置</button>';
+  cfgs.forEach(function(c,i){
+    bar += '<button class="cfg-chip n'+(cur&&cur.id===c.id?' on':'')+'" onclick="openCfgForm(\''+taskId+'\',\''+c.id+'\')">'
+        + esc(c.name||('配置'+(i+1))) + '</button>';
+  });
+  bar += '</div>';
+
+  var html = bar;
+
+  /* 配置名称 */
+  html += '<div class="frow"><label>配置名称<span class="hint">同一项目可有多份配置，如 1#电梯 / 2#电梯</span></label>'
+    + '<input type="text" id="cfg_name" value="'+esc(cur?(cur.name||''):'')+'" placeholder="如：1#客梯、有机房新梯"></div>';
+
+  /* 分节字段 */
+  CFG_SECTIONS.forEach(function(sec){
+    html += '<div class="cfg-section">'+esc(sec.title)+'</div>';
+    sec.fields.forEach(function(f){
+      var v = cur ? (cur.fields&&cur.fields[f.k]||'') : '';
+      var inner;
+      if(f.type==='select'){
+        inner = '<select data-cfg="'+f.k+'"><option value="">请选择</option>'
+          + f.options.map(function(o){ return '<option value="'+esc(o)+'"'+(v===o?' selected':'')+'>'+esc(o)+'</option>'; }).join('')
+          + '</select>';
+      }else{
+        inner = '<input type="text" data-cfg="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
+      }
+      html += '<div class="cfg-field" data-field="'+f.k+'">'
+        + '<label>'+esc(f.label)+(f.hint?'<span class="hint">'+esc(f.hint)+'</span>':'')+'</label>'
+        + inner + '</div>';
+    });
+  });
+
+  /* 对重块数量 —— 独立记录区（不并入上面配置） */
+  html += '<div class="cfg-section">对重块（单独记录）</div>';
+  html += '<div class="cfg-cwt">'
+    + '<div class="ct">'
+    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>'
+    + '对重块数量</div>'
+    + '<div class="cfg-row2">'
+    + '<div class="cfg-field" style="margin:0"><label>块数</label>'
+    + '<input type="number" id="cfg_cwtCount" min="0" step="1" value="'+esc(cur?(cur.cwtCount||''):'')+'" placeholder="如：30"></div>'
+    + '<div class="cfg-field" style="margin:0"><label>对重块材质</label>'
+    + '<select id="cfg_cwtMat"><option value="">请选择</option>'
+    + ['金属','非金属'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.cwtMat===o)?' selected':'')+'>'+o+'</option>'; }).join('')
+    + '</select></div>'
+    + '</div>'
+    + '<div class="cfg-field" style="margin-top:10px"><label>是否变化 / 新检规说明<span class="hint">可换行</span></label>'
+    + '<textarea id="cfg_cwtNote" placeholder="例如：28块（未变化）&#10;新检规：...">'+esc(cur?(cur.cwtNote||''):'')+'</textarea></div>'
+    + '</div>';
+
+  /* 报告补充项 */
+  html += '<div class="cfg-section">报告补充项<span class="hint" style="font-weight:400;color:var(--hint);font-size:11px;margin-left:6px">用于生成报告时的判定</span></div>';
+  html += '<div class="cfg-field"><label>客梯 / 货梯</label><select id="cfg_usage">'
+    + ['客梯','货梯'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.usage===o)?' selected':'')+'>'+o+'</option>'; }).join('')
+    + '</select></div>';
+  html += '<div class="cfg-row2">'
+    + '<div class="cfg-field"><label>上次125%试验</label><input type="text" id="cfg_brakeTest" value="'+esc(cur?(cur.brakeTest||'/'):'/')+'" placeholder="如：2025-06"></div>'
+    + '<div class="cfg-field"><label>本次做125%</label><select id="cfg_doBrake">'
+    + ['否','是'].map(function(o){ return '<option value="'+o+'"'+((cur&&cur.doBrake===o)?' selected':'')+'>'+o+'</option>'; }).join('')
+    + '</select></div></div>';
+
+  html += '<div class="cfg-warn"><b>超新备案电梯专项提醒</b>以下项目不作检验要求：<br>1. 不要求单边制动<br>2. 超满载声光报警可选其一（声 OR 光）<br>3. 不要求其他制动形式（封星）</div>';
+
+  html += '<div class="cfg-sticky"><div class="form-actions" style="margin:0">'
+    + '<button class="btn" onclick="saveCfgForm()">'+(cur?'保存修改':'保存配置')+'</button>'
+    + (cur?'<button class="btn ghost" onclick="copyCfgForm(\''+taskId+'\',\''+cur.id+'\')">复制一份</button>':'')
+    + '<button class="btn ghost" onclick="closeSheet()">取消</button>'
+    + '</div></div>';
+
+  var layer = openSheet(cur?('编辑配置 · '+(cur.name||'')):'记录电梯配置', html);
+  layer.__type='cfgForm'; layer.__id=taskId;
+  layer.__refresh = function(){
+    layer.querySelector('.sheet-body').innerHTML = html;
+    bindCfgFieldState();
+  };
+  bindCfgFieldState();
+}
+
+/* 未填写项浅红提醒 */
+function bindCfgFieldState(){
+  var layer = SHEET_STACK[SHEET_STACK.length-1];
+  if(!layer) return;
+  CFG_REQUIRED.forEach(function(k){
+    var el = layer.querySelector('[data-cfg="'+k+'"]');
+    var box = layer.querySelector('[data-field="'+k+'"]');
+    if(!el||!box) return;
+    var unf = !el.value;
+    box.classList.toggle('unfilled', unf);
+  });
+}
+
+/* 读取表单 */
+function readCfgForm(){
+  var layer = SHEET_STACK[SHEET_STACK.length-1];
+  var f = {};
+  layer.querySelectorAll('[data-cfg]').forEach(function(el){ f[el.getAttribute('data-cfg')] = el.value; });
+  var g = function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  return {
+    name: g('cfg_name').trim(),
+    fields: f,
+    cwtCount: g('cfg_cwtCount').trim(),
+    cwtMat: g('cfg_cwtMat'),
+    cwtNote: g('cfg_cwtNote').trim(),
+    usage: g('cfg_usage'),
+    brakeTest: g('cfg_brakeTest').trim()||'/',
+    doBrake: g('cfg_doBrake')
+  };
+}
+
+/* 保存后回到配置详情：先收掉所有弹层再重开，避免层叠遮挡 */
+function backToCfgDetail(taskId){
+  while(SHEET_STACK.length){
+    var l = SHEET_STACK.pop();
+    l.classList.remove('open');
+    l.remove();
+  }
+  document.body.style.overflow = '';
+  setTimeout(function(){ openCfgDetail(taskId); }, 60);
+}
+
+function saveCfgForm(){
+  var data = readCfgForm();
+  var layer = SHEET_STACK[SHEET_STACK.length-1];
+  var missing = CFG_REQUIRED.filter(function(k){ return !data.fields[k]; });
+  if(missing.length){
+    var names = missing.map(function(k){
+      for(var i=0;i<CFG_SECTIONS.length;i++) for(var j=0;j<CFG_SECTIONS[i].fields.length;j++)
+        if(CFG_SECTIONS[i].fields[j].k===k) return CFG_SECTIONS[i].fields[j].label;
+      return k;
+    });
+    toast('还有 '+missing.length+' 项未填写：'+names.join('、'));
+    return;
+  }
+  var cfgs = getTaskCfgs(CFG_EDIT.taskId);
+  if(!data.name) data.name = defaultCfgName(data);
+  if(CFG_EDIT.cfgId){
+    var c = cfgs.find(function(x){return x.id===CFG_EDIT.cfgId;});
+    if(c){ c.name=data.name; c.fields=data.fields; c.cwtCount=data.cwtCount; c.cwtMat=data.cwtMat;
+           c.cwtNote=data.cwtNote; c.usage=data.usage; c.brakeTest=data.brakeTest;
+           c.doBrake=data.doBrake; c.updatedAt=Date.now(); }
+    toast('配置已更新');
+  }else{
+    cfgs.push({ id:cfgUid(), name:data.name, fields:data.fields, cwtCount:data.cwtCount,
+      cwtMat:data.cwtMat, cwtNote:data.cwtNote, usage:data.usage, brakeTest:data.brakeTest,
+      doBrake:data.doBrake, createdAt:Date.now(), updatedAt:Date.now() });
+    toast('配置已保存');
+  }
+  saveAll();
+  backToCfgDetail(CFG_EDIT.taskId);
+}
+
+function defaultCfgName(data){
+  var a = data.fields.elevatorType||'';
+  var b = data.fields.roomType||'';
+  var s = a.replace('电梯','');
+  return (s ? s : '电梯') + (b||'');
+}
+
+function copyCfgForm(taskId, cfgId){
+  var cfgs = getTaskCfgs(taskId);
+  var c = cfgs.find(function(x){return x.id===cfgId;});
+  if(!c) return;
+  var n = JSON.parse(JSON.stringify(c));
+  n.id = cfgUid(); n.name = (c.name||'配置')+' 副本';
+  n.createdAt = Date.now(); n.updatedAt = Date.now();
+  cfgs.push(n);
+  saveAll();
+  toast('已复制一份');
+  backToCfgDetail(taskId);
+}
+
+function delCfg(taskId, cfgId){
+  var cfgs = getTaskCfgs(taskId);
+  var c = cfgs.find(function(x){return x.id===cfgId;});
+  showConfirm('删除配置','确定删除「'+(c?c.name:'')+'」？此操作不可撤销。', function(){
+    var t = STATE.tasks.find(function(x){return x.id===taskId;});
+    if(t) t.cfgs = cfgs.filter(function(x){return x.id!==cfgId;});
+    saveAll();
+    closeConfirm();
+    toast('已删除');
+    backToCfgDetail(taskId);
+  });
+}
+
+/* ============================================================
+ * 查看配置 —— 详情界面
+ * ============================================================ */
+function openCfgDetail(taskId){
+  var t = STATE.tasks.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  var cfgs = getTaskCfgs(taskId);
+
+  var html = '';
+
+  /* 头部信息 */
+  html += '<div class="cfg-hero">'
+    + '<div class="h1">'
+    + '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 6v4"/></svg>'
+    + esc(t.title||'未命名任务')
+    + '</div>'
+    + '<div class="h2">'+esc([t.deviceType, t.address, t.reportNo].filter(Boolean).join(' · ')||'—')+'</div>'
+    + '<div class="acts">'
+    + '<button class="btn wide" onclick="openCfgForm(\''+taskId+'\',null)">'
+    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录新配置</button>'
+    + '<button class="btn alt" onclick="closeSheet();openTask(\''+taskId+'\')">返回任务</button>'
+    + '</div></div>';
+
+  if(!cfgs.length){
+    html += '<div class="cfg-empty">'
+      + '<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M12 7v6M9 10h6"/></svg>'
+      + '<div style="font-size:14px;color:var(--sub)">该项目还没有记录配置</div>'
+      + '<div style="font-size:12px;margin-top:4px">点上方「记录新配置」开始，支持一份项目挂多台电梯配置</div>'
+      + '<button class="btn" style="margin-top:16px" onclick="openCfgForm(\''+taskId+'\',null)">立即记录</button>'
+      + '</div>';
+    var l0 = openSheet('电梯配置', html);
+    l0.__type='cfgDetail'; l0.__id=taskId;
+    return;
+  }
+
+  html += '<div style="font-size:12px;color:var(--sub);font-weight:600;margin:2px 0 10px">共 '+cfgs.length+' 份配置</div>';
+
+  cfgs.forEach(function(c,i){
+    html += renderCfgCard(taskId, c, i);
+  });
+
+  var layer = openSheet('电梯配置 · '+cfgs.length+' 份', html);
+  layer.__type='cfgDetail'; layer.__id=taskId;
+}
+
+function cfgVal(c, k){ return (c.fields && c.fields[k]) || ''; }
+
+function renderCfgCard(taskId, c, i){
+  var f = c.fields||{};
+  var h = '<div class="cfg-card c'+(i%4+1)+'">'
+    + '<div class="cfg-card-hd">'
+    + '<span class="nm">'+esc(c.name||('配置'+(i+1)))+'</span>'
+    + '<span class="cnt">'+(c.cwtCount?('对重 '+esc(c.cwtCount)+' 块'):'')+'</span>'
+    + '<button class="del" onclick="delCfg(\''+taskId+'\',\''+c.id+'\')" title="删除">'
+    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
+    + '</div>';
+
+  h += '<div class="cfg-grid">';
+  CFG_SECTIONS.forEach(function(sec){
+    sec.fields.forEach(function(fd){
+      var v = f[fd.k]||'';
+      h += '<div class="it"><div class="k">'+esc(fd.label)+'</div><div class="v'+(v?'':' gray')+'">'+(v?esc(v):'未填')+'</div></div>';
+    });
+  });
+  h += '<div class="it"><div class="k">对重块数量</div><div class="v'+(c.cwtCount?'':' gray')+'">'+(c.cwtCount?esc(c.cwtCount)+' 块':'未填')+'</div></div>';
+  h += '<div class="it"><div class="k">对重块材质</div><div class="v'+(c.cwtMat?'':' gray')+'">'+(c.cwtMat?esc(c.cwtMat):'未填')+'</div></div>';
+  h += '<div class="it"><div class="k">客/货梯</div><div class="v'+(c.usage?'':' gray')+'">'+(c.usage?esc(c.usage):'客梯')+'</div></div>';
+  h += '</div>';
+
+  if(c.cwtNote){
+    h += '<div style="font-size:12px;color:var(--sub);background:var(--bg);border-radius:10px;padding:9px 11px;margin-top:9px;white-space:pre-wrap;line-height:1.65">'+esc(c.cwtNote)+'</div>';
+  }
+
+  h += '<div style="display:flex;gap:8px;margin-top:12px">'
+    + '<button class="btn ghost sm" style="flex:1" onclick="openCfgForm(\''+taskId+'\',\''+c.id+'\')">编辑配置</button>'
+    + '<button class="btn-report blue" style="flex:2;min-height:44px;font-size:15px;border-radius:12px" onclick="openReport(\''+taskId+'\',\''+c.id+'\')">'
+    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>'
+    + '生成检验报告</button>'
+    + '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+/* ============================================================
+ * 生成报告
+ * ============================================================ */
+/* 「我的工作台」配置字段 → 报告引擎字段 的映射 */
+function cfgToRpt(c){
+  var f = c.fields||{};
+  /* 电梯类型 → 报告分类 */
+  var clsMap = {
+    '05年前超老电梯':'超老', '超15年电梯':'超十五年', '2017年前老电梯':'老',
+    '2017年后新电梯':'新', '2024年后超新电梯':'超新'
+  };
+  var elevClass = clsMap[f.elevatorType] || '新';
+
+  /* 制动器形式：鼓式 → 鼓式制动器；碟式/块式 → 块式制动器 */
+  var brakeStyle = (f.brakeType==='鼓式') ? '鼓式制动器' : '块式制动器';
+
+  /* 缓冲器类型：液压 → 耗能型；弹簧/聚氨酯 → 蓄能型 */
+  var bufferType = (f.bufferType==='液压') ? '耗能型' : '蓄能型';
+
+  /* 反绳轮材质：金属 → 金属；尼龙 → 非金属 */
+  var sheaveMat = (f.sheaveMaterial==='尼龙') ? '非金属' : '金属';
+
+  /* 「不适用」类选项 → 按无处理 */
+  var yn = function(v){ return v==='有' ? '有' : '无'; };
+
+  return {
+    machineRoom:  f.roomType || '有机房',
+    elevClass:    elevClass,
+    usageType:    c.usage || '客梯',
+    modification: f.renovation ? '有' : '无',
+    handWheel:    yn(f.handwheel),
+    emergElec:    yn(f.emergencyElectric),
+    brakeStyle:   brakeStyle,
+    govReset:     yn(f.autoReset),
+    ascOverspeed: yn(f.upOverspeed),
+    ucmp:         yn(f.unexpectedMove),
+    coatedBelt:   yn(f.beltType),
+    cwtSafety:    yn(f.counterSafety),
+    doorCloseType: f.doorCloser || '重锤',
+    sheaveMat:    sheaveMat,
+    bufferType:   bufferType,
+    cwtCount:     c.cwtCount || '30',
+    cwtMat:       c.cwtMat || '金属',
+    safeWindow:   yn(f.safetyWindow),
+    brakeTest:    c.brakeTest || '/',
+    doBrakeTest:  c.doBrake || '否'
+  };
+}
+
+var RPT_STATE = { taskId:null, cfgId:null };
+
+function openReport(taskId, cfgId){
+  var t = STATE.tasks.find(function(x){return x.id===taskId;});
+  var cfgs = getTaskCfgs(taskId);
+  var c = cfgs.find(function(x){return x.id===cfgId;});
+  if(!t||!c) return;
+
+  var cfg = cfgToRpt(c);
+  var f = c.fields||{};
+  var tagText = '';
+  try{ tagText = rptParseState(cfg).tagText; }catch(e){}
+
+  var html = '<div class="rpt-toolbar rpt-noprint">'
+    + '<button class="btn ghost sm" onclick="closeSheet()">返回配置</button>'
+    + '<button class="btn" style="background:var(--acc);color:#fff" onclick="window.print()">'
+    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>'
+    + '打印 / 导出PDF</button>'
+    + '<button class="btn sec sm" onclick="regenReport()">重新生成</button>'
+    + '<span style="font-size:11px;color:var(--hint);margin-left:auto">14 页 · 仅供现场核对参考</span>'
+    + '</div>';
+
+  html += '<div class="rpt-meta">'
+    + '<div style="font-weight:700;font-size:13px;margin-bottom:6px">'+esc(c.name||'配置')+'</div>'
+    + '<div style="color:var(--sub)">'+esc([cfg.machineRoom, clsLabel(cfg.elevClass), cfg.usageType, '对重 '+cfg.cwtCount+' 块'].join(' · '))+'</div>'
+    + (tagText? '<div style="color:var(--acc);margin-top:4px">'+esc(tagText)+'</div>':'')
+    + (t.title? '<div style="color:var(--sub);margin-top:4px">'+esc(t.title)+'</div>':'')
+    + '</div>';
+
+  html += '<div class="rpt-scroll" id="rptScroll"><div id="rptHost"></div></div>';
+
+  var layer = openSheet('检验原始记录 · '+(c.name||''), html);
+  layer.__type='report'; layer.__id=taskId;
+  RPT_STATE.taskId = taskId; RPT_STATE.cfgId = cfgId;
+
+  setTimeout(function(){
+    regenReport();
+    /* 按容器宽度自适应缩放 A4 */
+    fitReport();
+  }, 60);
+}
+
+function clsLabel(k){
+  return {'超老':'超老（2005前）','超十五年':'超十五年','老':'老（2005~2016）','新':'新（2017~2023）','超新':'超新（2024后）'}[k]||k;
+}
+
+function regenReport(){
+  var cfgs = getTaskCfgs(RPT_STATE.taskId);
+  var c = cfgs.find(function(x){return x.id===RPT_STATE.cfgId;});
+  var host = document.getElementById('rptHost');
+  if(!c||!host) return;
+  try{
+    rptBuild(cfgToRpt(c), host);
+  }catch(e){
+    host.innerHTML = '<div style="padding:30px;text-align:center;color:#c00;font-size:13px">报告生成失败：'+esc(e.message)+'</div>';
+    if(window.console) console.error(e);
+  }
+  fitReport();
+}
+
+/* A4 页宽 210mm ≈ 794px；容器窄则整体缩放 */
+function fitReport(){
+  var scroll = document.getElementById('rptScroll');
+  if(!scroll) return;
+  var avail = scroll.clientWidth - 16;
+  var pageW = 794;
+  var scale = Math.min(1, avail/pageW);
+  scroll.querySelectorAll('.page').forEach(function(p){
+    p.style.transform = scale<1 ? ('scale('+scale+')') : '';
+    p.style.marginBottom = scale<1 ? (14 - (1-scale)*1120) + 'px' : '';
+    if(scale<1) p.style.marginRight = (1-scale)*pageW + 'px';
+  });
+}
+
+/* ============================================================
+ * 数据迁移 —— 从「我的工作台」历史记录导入
+ * ============================================================ */
+/* 我的工作台 ef_xxx → 本模块字段 key */
+var WB2CFG = {
+  ef_elevatorType:'elevatorType', ef_roomType:'roomType', ef_renovation:'renovation',
+  ef_contact:'contact', ef_maintainer:'maintainer', ef_handwheel:'handwheel',
+  ef_emergencyElectric:'emergencyElectric', ef_autoReset:'autoReset',
+  ef_brakeType:'brakeType', ef_upOverspeed:'upOverspeed',
+  ef_unexpectedMove:'unexpectedMove', ef_beltType:'beltType',
+  ef_doorCloser:'doorCloser', ef_sheaveMaterial:'sheaveMaterial',
+  ef_bufferType:'bufferType', ef_safetyWindow:'safetyWindow',
+  ef_counterSafety:'counterSafety'
+};
+
+/* 把一条「我的工作台」电梯历史记录转成本模块配置对象 */
+function wbRecordToCfg(rec){
+  var f = rec.fields || {};
+  var out = {};
+  Object.keys(WB2CFG).forEach(function(ef){
+    var v = f[ef];
+    if(v!=null && v!=='') out[WB2CFG[ef]] = String(v);
+  });
+  /* 对重块：从旧的多行文本里抽出块数 */
+  var cwtText = f.ef_counterweight || '';
+  var m = cwtText.match(/(\d+)\s*块/);
+  var cwtCount = m ? m[1] : '';
+  return {
+    name: rec.preview ? ('历史 ' + String(rec.date||'').slice(5) + ' 配置') : '导入配置',
+    fields: out,
+    cwtCount: cwtCount,
+    cwtMat: '',
+    cwtNote: cwtText,
+    usage: '客梯',
+    brakeTest: '/',
+    doBrake: '否',
+    createdAt: rec.t || Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+/* 扫一遍所有电梯任务，把「我的工作台」历史挂到最匹配的标题上；无匹配则挂在第一个电梯任务 */
+function importWbHistory(){
+  var raw;
+  try{ raw = JSON.parse(localStorage.getItem('wb_fh_elevator_history')||'[]'); }
+  catch(e){ raw = []; }
+  if(!raw.length){ toast('未找到「我的工作台」的电梯历史记录'); return 0; }
+
+  var elevTasks = STATE.tasks.filter(function(t){ return (t.deviceType||'').indexOf('电梯')>=0; });
+  if(!elevTasks.length){ toast('当前没有电梯任务，无法挂载'); return 0; }
+
+  /* 已有配置全量收集，用于查重 */
+  var seen = {};
+  STATE.tasks.forEach(function(t){
+    (t.cfgs||[]).forEach(function(c){ seen[c.name+'|'+JSON.stringify(c.fields)] = 1; });
+  });
+
+  var added = 0;
+  raw.slice(0,20).reverse().forEach(function(rec){
+    var cfg = wbRecordToCfg(rec);
+    var key = cfg.name+'|'+JSON.stringify(cfg.fields);
+    if(seen[key]) return;
+    /* 按地址/名称模糊匹配任务 */
+    var target = null;
+    var hay = (rec.preview||'')+' '+(rec.fullText||'');
+    elevTasks.forEach(function(t){
+      if(target) return;
+      var probe = (t.title||'')+(t.maintCo||'');
+      if(probe && hay.indexOf(t.maintCo||'\u0001')>=0) target = t;
+    });
+    if(!target) target = elevTasks[0];
+    if(!Array.isArray(target.cfgs)) target.cfgs = [];
+    cfg.id = cfgUid();
+    target.cfgs.push(cfg);
+    seen[key] = 1;
+    added++;
+  });
+
+  saveAll();
+  renderAll();
+  toast(added ? ('已导入 '+added+' 份历史配置') : '历史配置均已存在');
+  return added;
+}
+
+/* 在设置里挂一个入口 */
+function openCfgImportView(){
+  var raw=[];
+  try{ raw = JSON.parse(localStorage.getItem('wb_fh_elevator_history')||'[]'); }catch(e){}
+  var total = STATE.tasks.reduce(function(n,t){ return n + ((t.cfgs&&t.cfgs.length)?t.cfgs.length:0); }, 0);
+  var h = '<div style="font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:16px">'
+    + '把「我的工作台」里已记录的电梯检验配置搬到工作台，一个项目可挂多份配置，'
+    + '之后直接在工作台里生成检验报告。</div>'
+    + '<div style="display:flex;gap:10px;margin-bottom:16px">'
+    + '<div style="flex:1;background:var(--bg);border-radius:12px;padding:12px 14px">'
+    + '<div style="font-size:20px;font-weight:700">'+(raw.length||0)+'</div>'
+    + '<div style="font-size:11px;color:var(--sub);margin-top:2px">我的工作台历史记录</div></div>'
+    + '<div style="flex:1;background:var(--bg);border-radius:12px;padding:12px 14px">'
+    + '<div style="font-size:20px;font-weight:700">'+total+'</div>'
+    + '<div style="font-size:11px;color:var(--sub);margin-top:2px">工作台现有配置</div></div>'
+    + '</div>';
+  h += '<button class="btn-report" onclick="doImportWb()">'
+    + '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>'
+    + '立即导入历史配置</button>';
+  h += '<div style="font-size:12px;color:var(--hint);margin-top:12px;line-height:1.7">'
+    + '导入按配置内容查重，重复的不会重复导入。若「我的工作台」数据在另一台设备，'
+    + '可先用它的「数据同步」导出，再回到这里导入。</div>';
+  var l = openSheet('导入电梯配置', h);
+  l.__type='cfgImport';
+}
+function doImportWb(){
+  var n = importWbHistory();
+  if(n){
+    while(SHEET_STACK.length){ var l=SHEET_STACK.pop(); l.classList.remove('open'); l.remove(); }
+    document.body.style.overflow='';
+    setTimeout(function(){
+      var t = STATE.tasks.find(function(x){return x.cfgs&&x.cfgs.length;});
+      if(t) openCfgDetail(t.id);
+    }, 60);
+  }
+}
+
+function quickReport(taskId){
+  var cfgs=getTaskCfgs(taskId);
+  if(!cfgs.length){ openCfgForm(taskId,null); return; }
+  if(cfgs.length===1){ openReport(taskId, cfgs[0].id); return; }
+  /* 多份配置：列出选择 */
+  var t=STATE.tasks.find(function(x){return x.id===taskId;});
+  var h='<div style="font-size:13px;color:var(--sub);margin-bottom:14px">该项目有 '+cfgs.length+' 份配置，选择要生成报告的：</div>';
+  cfgs.forEach(function(c,i){
+    h+='<button class="cfg-card" style="display:block;width:100%;text-align:left;border:1px solid var(--line);cursor:pointer;margin-bottom:10px" onclick="closeSheet();setTimeout(function(){openReport(\''+taskId+'\',\''+c.id+'\')},200)">'
+      +'<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+esc(c.name||('配置'+(i+1)))+'</div>'
+      +'<div style="font-size:12px;color:var(--sub)">'+esc([(c.fields||{}).elevatorType,(c.fields||{}).roomType,'对重 '+(c.cwtCount||'-')+' 块'].filter(Boolean).join(' · '))+'</div>'
+      +'</button>';
+  });
+  var l=openSheet('选择配置', h);
+  l.__type='cfgPick';
+}
+
+/* ================= 数据迁移 ================= */
+function migrateFromKeys(){
+  /* 兼容：若旧版曾用其它前缀，这里做一次兜底搬运 */
+  var legacy=['wb_check_tasks_v1','inspection_tasks','workbench_tasks'];
+  var moved=0;
+  legacy.forEach(function(k){
+    try{
+      var v=localStorage.getItem(k);
+      if(v && !localStorage.getItem(K.tasks)){ localStorage.setItem(K.tasks,v); moved++; }
+      if(v) localStorage.setItem(K.tasks, localStorage.getItem(K.tasks)||v);
+    }catch(e){}
+  });
+  return moved;
+}
+migrateFromKeys();
 
 /* ================= 启动 ================= */
 loadAll();
