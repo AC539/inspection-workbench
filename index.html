@@ -3232,6 +3232,70 @@ function getTaskCfgs(taskId){
 function cfgUid(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 
 /* ============================================================
+ * 旧数据迁移 —— v1/v2 → v3
+ * v1/v2 存的结构：
+ *   fields.contact / fields.maintainer  → 已从表单删除
+ *   fields.renovation (单文本)            → 拆成 renovated(是否) + renovation(详情)
+ *   fields.brakeType = '碟式'              → 并入 '块式'
+ *   cwtCount (独立数字字段)              → 并入 cwtNote 文本
+ *   brakeTest = '/'                       → 视作未填（''）
+ * 迁移在启动时跑一次，幂等；不改用户填的内容。
+ * ============================================================ */
+function migrateCfgs(){
+  var changed = 0, tasks = 0;
+  STATE.tasks.forEach(function(t){
+    if(!Array.isArray(t.cfgs) || !t.cfgs.length) return;
+    tasks++;
+    t.cfgs.forEach(function(c){
+      if(!c.fields) c.fields = {};
+      var f = c.fields;
+      var dirty = false;
+
+      /* 1) 制动器形式：碟式 → 块式 */
+      if(f.brakeType === '碟式'){ f.brakeType = '块式'; dirty = true; }
+
+      /* 2) 改造：单文本 → 是否 + 详情 */
+      if(f.renovated == null){
+        if(f.renovation != null){
+          var old = String(f.renovation).trim();
+          f.renovated = old ? '是' : '否';
+          /* 若内容里是「无 / 否 / 未改造」这类否定表述，视为没改造 */
+          if(/^(无|否|没有|未改造|不适用)$/.test(old)){ f.renovated = '否'; f.renovation = ''; }
+          dirty = true;
+        }else{
+          f.renovated = '否'; dirty = true;
+        }
+      }
+      /* 3) 删掉已废弃字段 */
+      if('contact' in f){ delete f.contact; dirty = true; }
+      if('maintainer' in f){ delete f.maintainer; dirty = true; }
+
+      /* 4) 对重块数量：并入详情文本 */
+      if(c.cwtCount != null && String(c.cwtCount).trim() !== ''){
+        var n = String(c.cwtCount).trim();
+        var note = String(c.cwtNote||'').trim();
+        if(note.indexOf(n) < 0){
+          c.cwtNote = note ? (n + '块 · ' + note) : (n + '块');
+        }
+        delete c.cwtCount; dirty = true;
+      }
+      /* 5) brakeTest 的 '/' 视作未填 */
+      if(c.brakeTest === '/'){ c.brakeTest = ''; dirty = true; }
+      /* 6) doBrake 缺省补否 */
+      if(c.doBrake == null || c.doBrake === ''){ c.doBrake = '否'; dirty = true; }
+      /* 7) usage 缺省补客梯 */
+      if(c.usage == null || c.usage === ''){ c.usage = '客梯'; dirty = true; }
+
+      if(dirty){ changed++; c.updatedAt = Date.now(); }
+    });
+  });
+  if(changed){
+    try{ localStorage.setItem(K.tasks, JSON.stringify(STATE.tasks)); }catch(e){}
+  }
+  return { changed:changed, tasks:tasks };
+}
+
+/* ============================================================
  * 记录配置 —— 表单弹层
  * ============================================================ */
 var CFG_EDIT = { taskId:null, cfgId:null };
@@ -3912,6 +3976,9 @@ migrateFromKeys();
 
 /* ================= 启动 ================= */
 loadAll();
+/* 旧格式配置自动迁移（幂等） */
+var _mig = migrateCfgs();
+if(_mig.changed) console.log('电梯配置已迁移 v1/v2 → v3：'+_mig.changed+' 份');
 var now=new Date();
 STATE.viewDate=new Date(now.getFullYear(),now.getMonth(),1);
 renderAll();
