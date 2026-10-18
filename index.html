@@ -249,6 +249,13 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .cfg-grid .it .v{font-size:13px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cfg-grid .it .v.gray{color:var(--hint);font-weight:400}
 .cfg-card .btn-report,.cfg-card .btn{position:relative;z-index:2}
+/* ===== 未记完的配置：琥珀色标记（允许记一半先存） ===== */
+.cfg-card.incomplete{border-left-color:var(--amber);background:#FFFCF5;border-top-color:#FFE7BF;border-right-color:#FFE7BF;border-bottom-color:#FFE7BF}
+.cfg-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;color:#9A5B00;background:#FFEFD2;border:1px solid #FFD08A;border-radius:999px;padding:2px 8px;white-space:nowrap;flex-shrink:0}
+.cfg-miss{font-size:12px;line-height:1.7;color:#9A5B00;background:#FFF6E6;border:1px solid #FFE0AC;border-radius:10px;padding:9px 11px;margin-bottom:10px;word-break:break-word}
+.cfg-miss b{color:#8A4F00}
+.cfg-save-hint{font-size:12px;color:var(--hint);line-height:1.6;text-align:center;margin:16px 0 8px;padding:9px 12px;background:var(--bg);border-radius:10px}
+.cfg-chip.n.miss::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:1px}
 .cfg-empty{text-align:center;padding:34px 20px;color:var(--hint)}
 .cfg-empty svg{opacity:.35;margin-bottom:10px}
 /* 详情页头部操作条 */
@@ -1334,7 +1341,7 @@ function renderTaskDetailHtml(t){
   if(t.postponedDates&&t.postponedDates.length){
     html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
   }
-  var _cn=getTaskCfgs(t.id).length;
+  var _cs=taskCfgStat(t.id), _cn=_cs.total;
   if(_cn){
     html+='<button class="btn-report green" style="margin-bottom:8px" onclick="quickReport(\''+t.id+'\')">'
       +'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h2"/></svg>'
@@ -1342,7 +1349,7 @@ function renderTaskDetailHtml(t){
   }
   html+='<button class="btn '+(_cn?'sec':'')+'" style="width:100%;margin-bottom:14px" onclick="openCfgDetail(\''+t.id+'\')">'
     +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
-    +'查看配置'+(_cn?('（'+_cn+' 份）'):'')+'</button>';
+    +'查看配置'+(_cn?('（'+_cn+' 份'+(_cs.miss?(' · '+_cs.miss+' 份待补'):'')+'）'):'')+'</button>';
   html+='<div class="form-actions">'
     +'<button class="btn" onclick="openTaskForm(\''+t.id+'\')">编辑任务</button>'
     +(t.date?'<button class="btn warn" onclick="cancelSchedule(\''+t.id+'\')">取消安排</button>':'')
@@ -1352,11 +1359,14 @@ function renderTaskDetailHtml(t){
   return html;
 }
 function cfgHeadBtns(t){
-  var n=getTaskCfgs(t.id).length;
-  /* 右上角只保留一个入口：查看配置（记录配置在配置详情页内完成） */
-  return '<button class="btn sm" style="background:'+(n?'var(--acc)':'var(--card)')+';color:'+(n?'#fff':'var(--acc)')+';border:1px solid '+(n?'var(--acc)':'var(--line2)')+'" onclick="openCfgDetail(\''+t.id+'\')">'
+  var st=taskCfgStat(t.id), n=st.total, missn=st.miss;
+  /* 右上角只保留一个入口：查看配置；有未记完的配置时按钮变琥珀色并提示待补份数 */
+  var bg = n ? (missn? '#FFF1DC' : 'var(--acc)') : 'var(--card)';
+  var fg = n ? (missn? '#9A5B00' : '#fff') : 'var(--acc)';
+  var bd = n ? (missn? '#FFD08A' : 'var(--acc)') : 'var(--line2)';
+  return '<button class="btn sm" style="background:'+bg+';color:'+fg+';border:1px solid '+bd+'" onclick="openCfgDetail(\''+t.id+'\')">'
     +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
-    +'查看配置'+(n?' <b style="font-weight:700">'+n+'</b>':'')+'</button>';
+    +'查看配置'+(n?' <b style="font-weight:700">'+n+'</b>':'')+(missn?' · '+missn+' 待补':'')+'</button>';
 }
 function openTask(id){
   var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
@@ -3222,6 +3232,40 @@ var CFG_SECTIONS = [
 var CFG_REQUIRED = [];
 CFG_SECTIONS.forEach(function(s){ s.fields.forEach(function(f){ if(f.required!==false) CFG_REQUIRED.push(f.k); }); });
 
+/* ============================================================
+ * 完整性判断
+ * 允许「记一半先存」，缺失项实时算出来（不落库为标记字段，
+ * 补完之后自动变回完整，不会出现标记过期）。
+ * 注：上次125%试验留空 = 无记录，属正常，不算缺项。
+ * ============================================================ */
+function cfgFieldLabel(k){
+  for(var i=0;i<CFG_SECTIONS.length;i++){
+    for(var j=0;j<CFG_SECTIONS[i].fields.length;j++){
+      if(CFG_SECTIONS[i].fields[j].k===k) return CFG_SECTIONS[i].fields[j].label;
+    }
+  }
+  var extra = { cwtMat:'对重块材质', cwtNote:'对重块详情', brakeTest:'上次125%试验' };
+  return extra[k] || k;
+}
+/* 返回「还没记」的项名称数组；空数组 = 已记录完整 */
+function cfgMissing(c){
+  var miss = [], f = (c && c.fields) || {};
+  CFG_REQUIRED.forEach(function(k){
+    if(!String(f[k]==null?'':f[k]).trim()) miss.push(cfgFieldLabel(k));
+  });
+  if(f.renovated==='是' && !String(f.renovation||'').trim()) miss.push('改造内容详情');
+  if(!String((c&&c.cwtMat)||'').trim()) miss.push('对重块材质');
+  if(!String((c&&c.cwtNote)||'').trim()) miss.push('对重块详情');
+  return miss;
+}
+function cfgComplete(c){ return cfgMissing(c).length === 0; }
+/* 某任务下配置统计：总份数 / 未记完份数 */
+function taskCfgStat(taskId){
+  var cfgs = getTaskCfgs(taskId), miss = 0;
+  for(var i=0;i<cfgs.length;i++){ if(!cfgComplete(cfgs[i])) miss++; }
+  return { total:cfgs.length, miss:miss, done:cfgs.length-miss };
+}
+
 /* ---- 配置在任务上的存取 ---- */
 function getTaskCfgs(taskId){
   var t = STATE.tasks.find(function(x){return x.id===taskId;});
@@ -3310,7 +3354,7 @@ function openCfgForm(taskId, cfgId){
   var bar = '<div class="cfg-bar">'
     + '<button class="cfg-chip'+(cur?'':' on')+'" onclick="openCfgForm(\''+taskId+'\',null)">＋ 新增配置</button>';
   cfgs.forEach(function(c,i){
-    bar += '<button class="cfg-chip n'+(cur&&cur.id===c.id?' on':'')+'" onclick="openCfgForm(\''+taskId+'\',\''+c.id+'\')">'
+    bar += '<button class="cfg-chip n'+(cur&&cur.id===c.id?' on':'')+(cfgComplete(c)?'':' miss')+'" onclick="openCfgForm(\''+taskId+'\',\''+c.id+'\')">'
         + esc(c.name||('配置'+(i+1))) + '</button>';
   });
   bar += '</div>';
@@ -3381,6 +3425,8 @@ function openCfgForm(taskId, cfgId){
     + '</select></div>';
 
   html += '<div class="cfg-warn"><b>超新备案电梯专项提醒</b>以下项目不作检验要求：<br>1. 不要求单边制动<br>2. 超满载声光报警可选其一（声 OR 光）<br>3. 不要求其他制动形式（封星）</div>';
+
+  html += '<div class="cfg-save-hint">记一半也能先保存 —— 没记完的配置会在列表里用橙色标出并显示缺几项，随时回来补。</div>';
 
   html += '<div class="cfg-sticky"><div class="form-actions" style="margin:0">'
     + '<button class="btn" onclick="saveCfgForm()">'+(cur?'保存修改':'保存配置')+'</button>'
@@ -3457,32 +3503,31 @@ function backToTask(taskId){
   setTimeout(function(){ openTask(taskId); }, 60);
 }
 
+/* 保存：不再要求填满，记一半也能存；缺项会在列表/详情用琥珀色标出，随时回来补 */
 function saveCfgForm(){
   var data = readCfgForm();
-  var layer = SHEET_STACK[SHEET_STACK.length-1];
-  var missing = CFG_REQUIRED.filter(function(k){ return !data.fields[k]; });
-  if(missing.length){
-    var names = missing.map(function(k){
-      for(var i=0;i<CFG_SECTIONS.length;i++) for(var j=0;j<CFG_SECTIONS[i].fields.length;j++)
-        if(CFG_SECTIONS[i].fields[j].k===k) return CFG_SECTIONS[i].fields[j].label;
-      return k;
-    });
-    toast('还有 '+missing.length+' 项未填写：'+names.join('、'));
-    return;
-  }
+  /* 只有「整张表一个字都没填」才拦一下，避免存出空卡片 */
+  var filled = 0;
+  Object.keys(data.fields).forEach(function(k){ if(String(data.fields[k]==null?'':data.fields[k]).trim()) filled++; });
+  if(String(data.cwtMat||'').trim()) filled++;
+  if(String(data.cwtNote||'').trim()) filled++;
+  if(!filled && !data.name){ toast('还没填任何内容，先记几项再保存'); return; }
+
   var cfgs = getTaskCfgs(CFG_EDIT.taskId);
   if(!data.name) data.name = defaultCfgName(data);
+  var miss = cfgMissing({ fields:data.fields, cwtMat:data.cwtMat, cwtNote:data.cwtNote });
+
   if(CFG_EDIT.cfgId){
     var c = cfgs.find(function(x){return x.id===CFG_EDIT.cfgId;});
     if(c){ c.name=data.name; c.fields=data.fields; c.cwtMat=data.cwtMat;
            c.cwtNote=data.cwtNote; c.usage=data.usage; c.brakeTest=data.brakeTest;
            c.doBrake=data.doBrake; c.updatedAt=Date.now(); }
-    toast('配置已更新');
+    toast(miss.length ? ('已更新 · 还差 '+miss.length+' 项（标为未完整）') : '配置已更新');
   }else{
     cfgs.push({ id:cfgUid(), name:data.name, fields:data.fields,
       cwtMat:data.cwtMat, cwtNote:data.cwtNote, usage:data.usage, brakeTest:data.brakeTest,
       doBrake:data.doBrake, createdAt:Date.now(), updatedAt:Date.now() });
-    toast('配置已保存');
+    toast(miss.length ? ('已保存 · 还差 '+miss.length+' 项（标为未完整）') : '配置已保存');
   }
   saveAll();
   backToCfgDetail(CFG_EDIT.taskId);
@@ -3577,14 +3622,23 @@ function cfgVal(c, k){ return (c.fields && c.fields[k]) || ''; }
 
 function renderCfgCard(taskId, c, i){
   var f = c.fields||{};
+  var miss = cfgMissing(c);
+  var inc = miss.length > 0;
   var cwtBlocks = parseCwtCount(c.cwtNote);
-  var h = '<div class="cfg-card c'+(i%4+1)+'">'
+  var h = '<div class="cfg-card c'+(i%4+1)+(inc?' incomplete':'')+'">'
     + '<div class="cfg-card-hd">'
     + '<span class="nm">'+esc(c.name||('配置'+(i+1)))+'</span>'
+    + (inc ? '<span class="cfg-badge">未完整 · 缺 '+miss.length+' 项</span>' : '')
     + '<span class="cnt">'+(cwtBlocks?('对重 '+cwtBlocks+' 块'):'')+'</span>'
     + '<button class="del" onclick="delCfg(\''+taskId+'\',\''+c.id+'\')" title="删除">'
     + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
     + '</div>';
+
+  /* 未记完：直接把缺的项列出来，方便下次照着补 */
+  if(inc){
+    h += '<div class="cfg-miss"><b>还没记：</b>'+esc(miss.join('、'))
+      + '<div style="margin-top:3px;opacity:.85">补完这几项就会自动变回完整（不影响现在先保存）</div></div>';
+  }
 
   h += '<div class="cfg-grid">';
   CFG_SECTIONS.forEach(function(sec){
@@ -3715,8 +3769,15 @@ function openReport(taskId, cfgId){
     + (t.title? '<div style="color:var(--sub);margin-top:4px">'+esc(t.title)+'</div>':'')
     + '</div>';
 
-  /* 重点提醒：改造详情缺失 / 对重块详情缺失 */
+  /* 重点提醒：配置未记完 / 改造详情缺失 / 对重块详情缺失 */
   var alerts = [];
+  var _missAll = cfgMissing(c);
+  var _missCore = _missAll.filter(function(x){ return x!=='改造内容详情' && x!=='对重块详情'; });
+  if(_missCore.length){
+    alerts.push('这份配置还没记录完整，还差 <b>'+_missCore.length+' 项</b>：'+esc(_missCore.join('、'))
+      + '。未填的项目在报告里会按默认值处理（电梯类型默认「2017年后新电梯」、机房默认「有机房」、'
+      + '制动器默认「块式」等），<b>打印前建议先补齐</b>或逐项核对结论。');
+  }
   if(f.renovated==='是' && !(f.renovation||'').trim()){
     alerts.push('该电梯已标记「有改造」，但未填写改造内容详情。'
       + '<b>请查看往年检验原始记录确认改造详情</b>，核对本报告涉及改造的检验项目结论是否需要调整。');
@@ -3949,9 +4010,11 @@ function quickReport(taskId){
   var t=STATE.tasks.find(function(x){return x.id===taskId;});
   var h='<div style="font-size:13px;color:var(--sub);margin-bottom:14px">该项目有 '+cfgs.length+' 份配置，选择要生成报告的：</div>';
   cfgs.forEach(function(c,i){
-    h+='<button class="cfg-card" style="display:block;width:100%;text-align:left;border:1px solid var(--line);cursor:pointer;margin-bottom:10px" onclick="closeSheet();setTimeout(function(){openReport(\''+taskId+'\',\''+c.id+'\')},200)">'
-      +'<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+esc(c.name||('配置'+(i+1)))+'</div>'
-      +'<div style="font-size:12px;color:var(--sub)">'+esc([(c.fields||{}).elevatorType,(c.fields||{}).roomType,'对重 '+(c.cwtCount||'-')+' 块'].filter(Boolean).join(' · '))+'</div>'
+    var _cm=cfgMissing(c);
+    var _blk=parseCwtCount(c.cwtNote);
+    h+='<button class="cfg-card'+(_cm.length?' incomplete':'')+'" style="display:block;width:100%;text-align:left;border:1px solid var(--line);cursor:pointer;margin-bottom:10px" onclick="closeSheet();setTimeout(function(){openReport(\''+taskId+'\',\''+c.id+'\')},200)">'
+      +'<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+esc(c.name||('配置'+(i+1)))+(_cm.length?' <span class="cfg-badge">未完整 · 缺 '+_cm.length+' 项</span>':'')+'</div>'
+      +'<div style="font-size:12px;color:var(--sub)">'+esc([(c.fields||{}).elevatorType,(c.fields||{}).roomType,(_blk?('对重 '+_blk+' 块'):'')].filter(Boolean).join(' · '))+'</div>'
       +'</button>';
   });
   var l=openSheet('选择配置', h);
