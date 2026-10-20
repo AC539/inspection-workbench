@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>起重机报告生成器</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"SimSun","宋体",serif;background:#e5e5e5;color:#000;line-height:1.5}
+
+.toolbar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:2px solid #1a56db;padding:10px 16px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-height:62vh;overflow-y:auto}
+.toolbar h1{font-size:16px;color:#1a56db;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toolbar-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px}
+.toolbar-grid input,.toolbar-grid select{padding:5px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;background:#fafafa;width:100%}
+.toolbar-grid label{font-size:11px;color:#666;display:block;margin-bottom:2px}
+.toolbar-grid .h{display:none}
+.toolbar-grid.showall .h{display:block}
+.grp{grid-column:1/-1;font-size:11px;font-weight:700;color:#1a56db;border-bottom:1px solid #e0e7ff;padding-bottom:2px;margin-top:6px}
+.btn{display:inline-block;padding:7px 14px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-right:6px}
+.btn-primary{background:#1a56db;color:#fff}
+.btn-secondary{background:#10b981;color:#fff}
+.btn-info{background:#6366f1;color:#fff}
+.btn-warn{background:#dc2626;color:#fff}
+.btn:hover{opacity:.85}
+
+.page{width:210mm;height:297mm;padding:10mm 9mm;margin:8mm auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.15);position:relative;font-size:11px;color:#000;display:flex;flex-direction:column;overflow:hidden}
+.page>*{flex-shrink:0}
+.page-sm{padding:12mm 12mm}
+.formid{position:absolute;top:5mm;left:9mm;font-size:10px;color:#333;letter-spacing:1px}
+.pagetitle{text-align:center;font-size:24px;font-weight:700;margin:2mm 0 3mm;letter-spacing:2px}
+.pagetitle-sm{text-align:center;font-size:17px;font-weight:700;margin:2mm 0 2.5mm;letter-spacing:1px}
+
+.rt{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.75;min-height:0;align-self:stretch}
+.rt th,.rt td{border:1px solid #000;padding:9px 5px;vertical-align:middle}
+.rt th{text-align:center;font-weight:400;font-size:14px;padding:6px 4px;white-space:nowrap;letter-spacing:0}
+.rt td.c{text-align:center}
+.rt td.l{text-align:left}
+.rt td.v{vertical-align:middle;text-align:center;word-break:break-all;line-height:1.38}
+.rt .seno{width:4.2%}
+.rt .proj{width:15.5%}
+.rt .cont{width:36%}
+.rt .situ{width:20%}
+.rt .res{width:9%}
+.rt .conc{width:6.5%}
+.rt .note{width:8%}
+.rt .mark{font-size:16px;letter-spacing:1px}
+.rt tr.sec td{font-weight:700;text-align:center;font-size:11px;background:#fafafa;letter-spacing:1px}
+
+.cover-head{text-align:center;font-size:27px;font-weight:700;letter-spacing:2px;margin-top:30mm}
+.cover-sub{text-align:center;font-size:14px;margin-top:3mm;letter-spacing:1px}
+.cv-top{position:absolute;top:12mm;right:12mm;font-size:12.5px;line-height:2.1}
+.cv-top .row{display:flex;gap:6px}
+.cv-top .lbl{width:80px;white-space:nowrap}
+.cv-top .val{min-width:104px;border-bottom:1px solid #000;text-align:center}
+.cv-form{margin-top:22mm;font-size:14.5px}
+.cv-form .row{display:flex;align-items:flex-end;margin-bottom:7mm;padding-left:24mm}
+.cv-form .lbl{width:148px;letter-spacing:2px;white-space:nowrap}
+.cv-form .val{flex:1;border-bottom:1px solid #000;padding-bottom:1px;min-height:19px;text-align:center}
+
+.inst{font-size:13.4px;line-height:1.95;margin-top:5mm}
+.inst p{margin-bottom:2.5px;text-indent:0}
+
+.pinfo{width:100%;border-collapse:collapse;font-size:12.2px;line-height:1.5;margin-top:3mm}
+.pinfo th,.pinfo td{border:1px solid #000;padding:4.2px 5px;vertical-align:middle}
+.pinfo td.k{text-align:center;letter-spacing:2px;width:26%}
+.pinfo td.vv{text-align:center;width:24%}
+.pinfo td.wide{text-align:center}
+.pinfo .grp{width:4%;text-align:center;letter-spacing:1px}
+.pinfo .unit{width:5%;text-align:center}
+.pinfo .remark{height:28mm;vertical-align:top;text-align:left;padding:4px 6px;line-height:2}
+
+.cond{font-size:12.6px;line-height:1.8;padding:4px 5px}
+.cond div{margin-bottom:1px}
+
+.ap-t{font-size:10px;text-align:center}
+.ap-l{font-size:11px;font-weight:700;margin-bottom:1mm}
+.ap-box{min-height:190mm;border:1px solid #000;padding:4mm;font-size:13.5px}
+.underline{display:inline-block;min-width:52px;border-bottom:1px solid #000;text-align:center;padding:0 3px;font-weight:700}
+
+.tip{font-size:11px;color:#666;padding:4px 0}
+.bar{font-size:11px;color:#1a56db;background:#eff6ff;padding:4px 10px;border-radius:4px}
+
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200}
+.sidebar-overlay.show{display:block}
+.sidebar{position:fixed;top:0;left:0;width:330px;height:100vh;background:#fff;box-shadow:2px 0 12px rgba(0,0,0,.15);z-index:201;overflow-y:auto;transform:translateX(-100%);transition:transform .2s}
+.sidebar.show{transform:translateX(0)}
+.sb-head{padding:12px 14px;border-bottom:1px solid #e5e7eb;font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.sb-close{cursor:pointer;font-size:20px;color:#888;background:none;border:none}
+.proj-item{border-bottom:1px solid #f0f0f0}
+.proj-name{padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.proj-name:hover{background:#f0f5ff}
+.proj-acts{display:flex;gap:6px}
+.proj-acts button{background:none;border:none;cursor:pointer;font-size:12px;color:#888;padding:2px 6px}
+.proj-acts button:hover{color:#1a56db}
+.proj-acts .del:hover{color:#dc2626}
+.unit-list{display:none;padding:0 0 8px 18px}
+.unit-list.show{display:block}
+.unit-item{padding:6px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center;border-radius:4px}
+.unit-item:hover{background:#eff6ff}
+.unit-item.active{background:#dbeafe;color:#1a56db;font-weight:600}
+.unit-item .del{color:#ccc;cursor:pointer;font-size:14px}
+.unit-item .del:hover{color:#dc2626}
+.add-btn{padding:8px 14px;margin:6px 14px;background:#eff6ff;border:1px dashed #1a56db;border-radius:6px;cursor:pointer;font-size:13px;color:#1a56db;text-align:center}
+.add-btn:hover{background:#dbeafe}
+
+#badPanel{display:none;position:fixed;top:64px;right:12px;width:400px;max-height:82vh;overflow-y:auto;background:#fff;border:2px solid #dc2626;border-radius:8px;padding:12px;z-index:300;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+#badPanel h3{font-size:14px;color:#dc2626;margin-bottom:8px}
+#badPanel .line{display:flex;gap:6px;align-items:center;margin-bottom:6px;font-size:12px}
+#badPanel input,#badPanel select,#badPanel textarea{border:1px solid #d1d5db;border-radius:4px;padding:4px 6px;font-size:12px;width:100%}
+#badPanel textarea{min-height:40px;resize:vertical}
+.badrow{border:1px solid #fecaca;background:#fff5f5;border-radius:6px;padding:8px;margin-bottom:8px;position:relative}
+.badrow .delbad{position:absolute;top:4px;right:6px;border:none;background:none;color:#dc2626;cursor:pointer;font-size:14px}
+
+@media print{
+  body{background:#fff}
+  .toolbar,.sidebar,.sidebar-overlay,#badPanel{display:none!important}
+  .page{margin:0;box-shadow:none;page-break-after:always;page-break-inside:avoid}
+  .page:last-child{page-break-after:auto}
+  @page{size:A4;margin:0}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>
+    <span>🏗 起重机定期检验原始记录生成器</span>
+    <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="bar" id="currLabel">未选择项目</span>
+      <button class="btn" style="background:#6366f1;color:#fff;font-size:12px;padding:5px 12px" onclick="saveCurrent()">💾 保存到当前</button>
+      <button class="btn" style="font-size:12px;padding:5px 12px" onclick="toggleSidebar()">📁 项目管理</button>
+    </span>
+  </h1>
+
+  <div class="toolbar-grid">
+    <div class="grp h">① 设备与使用单位信息</div>
+    <div class="h"><label>使用单位</label><input id="i_unit" value="四川省昌轩建筑工程有限责任公司" oninput="render()"></div>
+    <div class="h"><label>使用单位地址</label><input id="i_addr" value="彭州市牡丹大道中段38号" oninput="render()"></div>
+    <div class="h"><label>使用地点</label><input id="i_place" value="彭州市牡丹大道中段38号下料跨（中）" oninput="render()"></div>
+    <div class="h"><label>统一社会信用代码</label><input id="i_credit" value="91510100MA6CL14D8L" oninput="render()"></div>
+    <div class="h"><label>安全管理人员</label><input id="i_safe" value="周宇" oninput="render()"></div>
+    <div class="h"><label>联系电话</label><input id="i_tel" value="13388175789" oninput="render()"></div>
+    <div class="h"><label>邮政编码</label><input id="i_zip" value="/" oninput="render()"></div>
+    <div class="h"><label>制造单位</label><input id="i_maker" value="成都三江起重机制造有限公司" oninput="render()"></div>
+    <div class="h"><label>改造(重大修理)单位</label><input id="i_mod" value="/" oninput="render()"></div>
+
+    <div class="grp h">② 设备参数</div>
+    <div class="h"><label>设备类别</label>
+      <select id="i_cat" onchange="render()">
+        <option value="桥式起重机" selected>桥式起重机</option>
+        <option value="门式起重机">门式起重机</option>
+      </select>
+    </div>
+    <div class="h"><label>起重机型式</label>
+      <select id="i_ctype" onchange="typeChange()">
+        <option value="电动单梁" selected>电动单梁</option>
+        <option value="通用桥式">通用桥式</option>
+        <option value="电动葫芦门式">电动葫芦门式</option>
+        <option value="通用门式">通用门式</option>
+        <option value="其他特殊类别">其他特殊类别</option>
+      </select>
+    </div>
+    <div id="box_ctypeOther" style="display:none"><label>其他型式说明</label><input id="i_ctypeOther" value="" oninput="render()" placeholder="手动填写具体型式"></div>
+    <div class="h"><label>设备品种</label><input id="i_kind" value="电动单梁起重机" oninput="render()"></div>
+    <div class="h"><label>型号规格</label><input id="i_model" value="LD10-22.5" oninput="render()"></div>
+    <div class="h"><label>设备代码</label><input id="i_devcode" value="417051018220010030957" oninput="render()"></div>
+    <div class="h"><label>产品编号</label><input id="i_prod" value="09109" oninput="render()"></div>
+    <div class="h"><label>单位内编号</label><input id="i_inner" value="2#" oninput="render()"></div>
+    <div class="h"><label>额定起重量 (t)</label><input id="i_cap" value="10" oninput="render()"></div>
+    <div class="h"><label>跨度 (m)</label><input id="i_span" value="22.5" oninput="render()"></div>
+    <div class="h"><label>起升速度 (m/min)</label><input id="i_speed" value="7" oninput="render()"></div>
+    <div class="h"><label>起升高度 (m)</label><input id="i_h" value="12" oninput="render()"></div>
+    <div class="h"><label>整机工作级别</label><input id="i_level" value="A3" oninput="render()"></div>
+    <div class="h"><label>防爆等级</label><input id="i_ex" value="/" oninput="render()"></div>
+    <div class="h"><label>其他主要参数</label><input id="i_other" value="/" oninput="render()"></div>
+    <div class="h"><label>工作环境</label>
+      <select id="i_env" onchange="render()">
+        <option value="非露天" selected>非露天</option>
+        <option value="露天">露天</option>
+      </select>
+    </div>
+    <div class="h"><label>投入使用日期</label><input id="i_used" value="/" oninput="render()"></div>
+    <div class="h"><label>设计使用年限</label><input id="i_life" value="/" oninput="render()"></div>
+    <div class="h"><label>下次检验日期</label><input id="i_next" value="2028年07月01日" oninput="render()"></div>
+
+    <div class="grp h">③ 结构特征</div>
+    <div class="h"><label>主要结构特征</label><input id="i_struct" value="单主梁" oninput="render()"></div>
+    <div class="h"><label>主梁结构形式</label><input id="i_girder" value="正轨箱形梁" oninput="render()"></div>
+    <div class="h"><label>电气操作装置</label><input id="i_ctrl" value="无线遥控装置" oninput="render()"></div>
+    <div class="h"><label>吊具</label><input id="i_hook" value="吊钩" oninput="render()"></div>
+    <div class="h"><label>小车形式</label><input id="i_trolley" value="单小车" oninput="render()"></div>
+
+    <div class="grp">④ 配置开关（决定检验项是否适用，逐台确认）</div>
+    <div><label>门、梯子、走台、栏杆</label>
+      <select id="c_door" onchange="render()"><option value="无" selected>无</option><option value="有">有</option></select>
+    </div>
+    <div><label>司机室</label>
+      <select id="c_cabin" onchange="render()"><option value="无" selected>无</option><option value="有">有</option></select>
+    </div>
+    <div><label>无线遥控装置</label>
+      <select id="c_remote" onchange="render()"><option value="有" selected>有</option><option value="无">无</option></select>
+    </div>
+    <div><label>变速功能</label>
+      <select id="c_vspeed" onchange="render()"><option value="无" selected>无</option><option value="有">有</option></select>
+    </div>
+    <div><label>可进入桥架</label>
+      <select id="c_bridge" onchange="render()"><option value="无" selected>无</option><option value="有">有</option></select>
+    </div>
+    <div><label>起升机构</label>
+      <select id="c_hoist" onchange="render()"><option value="电动葫芦" selected>电动葫芦</option><option value="卷扬式">卷扬式（非电动葫芦）</option></select>
+    </div>
+    <div><label>轨道清扫器</label>
+      <select id="c_clean" onchange="render()"><option value="无" selected>无</option><option value="有">有</option></select>
+    </div>
+    <div><label>防碰撞装置</label>
+      <select id="c_coll" onchange="render()"><option value="有" selected>有</option><option value="无">无</option></select>
+    </div>
+    <div><label>钢丝绳数量</label>
+      <select id="c_rope" onchange="render()"><option value="单钢丝绳" selected>单钢丝绳（1组）</option><option value="双钢丝绳">双钢丝绳（2组）</option></select>
+    </div>
+    <div><label>安全监控管理系统</label>
+      <select id="c_mon" onchange="render()"><option value="未配置" selected>未配置</option></select>
+    </div>
+
+    <div class="grp h">⑤ 实测与检验信息</div>
+    <div class="h"><label>压板数</label><input id="m_clamp" value="3" oninput="render()"></div>
+    <div class="h"><label>安全圈数</label><input id="m_turn" value="4" oninput="render()"></div>
+    <div class="h"><label>绳卡数</label><input id="m_clip" value="/" oninput="render()"></div>
+    <div class="h"><label>绳卡间距 (mm)</label><input id="m_gap" value="/" oninput="render()"></div>
+    <div class="h"><label>接地 TN (Ω)</label><input id="m_tn" value="2" oninput="render()"></div>
+    <div class="h"><label>接地 TT/IT (Ω)</label><input id="m_tt" value="/" oninput="render()"></div>
+    <div class="h"><label>清扫器间隙 (mm)</label><input id="m_clean" value="/" oninput="render()"></div>
+    <div class="h"><label>绝缘电阻 (MΩ)</label><input id="m_ins" value=">550" oninput="render()"></div>
+    <div class="h"><label>工具箱号</label><input id="m_box" value="3-12" oninput="render()"></div>
+    <div class="h"><label>初检日期</label><input id="i_d1" value="2026-09-24" oninput="render()"></div>
+    <div class="h"><label>整改复检日期</label><input id="i_d2" value="2026-10-14" oninput="render()"></div>
+    <div class="h"><label>流水号</label><input id="i_sn" value="" oninput="render()"></div>
+    <div class="h"><label>报告编号</label><input id="i_rep" value="" oninput="render()"></div>
+    <div class="h"><label>收费金额</label><input id="i_fee" value="" oninput="render()"></div>
+    <div class="h"><label>使用登记证编号</label><input id="i_reg" value="" oninput="render()"></div>
+    <div class="h"><label>检验人员</label><input id="i_ins1" value="" oninput="render()"></div>
+    <div class="h"><label>校核人员</label><input id="i_ins2" value="" oninput="render()"></div>
+    <div class="h"><label>审核人员</label><input id="i_ins3" value="" oninput="render()"></div>
+    <div class="h"><label>录入人员</label><input id="i_ins4" value="" oninput="render()"></div>
+  </div>
+
+  <div style="margin-top:10px">
+    <button class="btn btn-primary" onclick="window.print()">🖨 打印 / 导出PDF</button>
+    <button class="btn btn-warn" onclick="toggleBad()">⚠ 不合格项登记</button>
+    <button class="btn" style="background:#64748b;color:#fff" onclick="toggleMore()">⚙ 更多字段</button>
+    <button class="btn btn-secondary" onclick="loadDemoA()">📄 载入样本A(单梁)</button>
+    <button class="btn btn-info" onclick="loadDemoB()">📄 载入样本B(门式)</button>
+    <span class="tip" id="stat"></span>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sbOverlay" onclick="toggleSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sb-head">项目管理<button class="sb-close" onclick="toggleSidebar()">✕</button></div>
+  <div class="add-btn" onclick="newProject()">＋ 新建项目</div>
+  <div id="projList"></div>
+</div>
+
+<div id="badPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h3>⚠ 不合格项登记（触发双段式结论）</h3>
+    <button onclick="toggleBad()" style="border:none;background:none;cursor:pointer;font-size:18px">✕</button>
+  </div>
+  <div id="badList"></div>
+  <button class="btn btn-warn" style="font-size:12px;padding:5px 10px" onclick="addBad()">＋ 添加不合格项</button>
+  <div style="font-size:11px;color:#666;margin-top:8px;line-height:1.6">
+    说明：有不合格项时，检验日期自动取「初检日期 → 整改复检日期」，报告备注自动汇总
+    「条款号 + 复检合格。」，附录3 自动登记。
+  </div>
+</div>
+
+<div id="out"></div>
+
+<script>
+/* ============================================================
+   配置读取
+   ============================================================ */
+function cfg(){
+  const g = id => document.getElementById(id).value;
+  return {
+    unit:g('i_unit'), addr:g('i_addr'), place:g('i_place'), credit:g('i_credit'),
+    safe:g('i_safe'), tel:g('i_tel'), zip:g('i_zip'), maker:g('i_maker'), mod:g('i_mod'),
+    cat:g('i_cat'), kind:g('i_kind'), ctype:g('i_ctype'), ctypeOther:g('i_ctypeOther'), model:g('i_model'), devcode:g('i_devcode'),
+    prod:g('i_prod'), inner:g('i_inner'), cap:g('i_cap'), span:g('i_span'),
+    speed:g('i_speed'), h:g('i_h'), level:g('i_level'), ex:g('i_ex'),
+    other:g('i_other'), env:g('i_env'), used:g('i_used'), life:g('i_life'), next:g('i_next'),
+    struct:g('i_struct'), girder:g('i_girder'), ctrl:g('i_ctrl'), hook:g('i_hook'), trolley:g('i_trolley'),
+    door:g('c_door'), cabin:g('c_cabin'), remote:g('c_remote'), vspeed:g('c_vspeed'),
+    bridge:g('c_bridge'), hoist:g('c_hoist'), clean:g('c_clean'), coll:g('c_coll'),
+    rope:g('c_rope'), mon:g('c_mon'),
+    clamp:g('m_clamp'), turn:g('m_turn'), clip:g('m_clip'), gap:g('m_gap'),
+    tn:g('m_tn'), tt:g('m_tt'), cleanGap:g('m_clean'), ins:g('m_ins'), box:g('m_box'),
+    d1:g('i_d1'), d2:g('i_d2'), sn:g('i_sn'), rep:g('i_rep'), fee:g('i_fee'), reg:g('i_reg'),
+    ins1:g('i_ins1'), ins2:g('i_ins2'), ins3:g('i_ins3'), ins4:g('i_ins4')
+  };
+}
+
+let BAD = [];   // 不合格项 {no, clause, text, note}
+
+var CTYPE_MAP = {'电动单梁':'电动单梁起重机','通用桥式':'通用桥式起重机','电动葫芦门式':'电动葫芦门式起重机','通用门式':'通用门式起重机'};
+function typeChange(){
+  var v = document.getElementById('i_ctype').value;
+  var box = document.getElementById('box_ctypeOther');
+  var kind = document.getElementById('i_kind');
+  if(CTYPE_MAP[v]){
+    kind.value = CTYPE_MAP[v];
+    if(box) box.style.display = 'none';
+  } else {
+    kind.value = '';
+    if(box) box.style.display = 'block';
+  }
+  render();
+}
+function toggleMore(){ document.querySelector('.toolbar-grid').classList.toggle('showall'); }
+function toggleBad(){ const p=document.getElementById('badPanel'); p.style.display = p.style.display==='block'?'none':'block'; }
+function addBad(){ BAD.push({no:'9', clause:'C3.8.1(2)', text:'吊钩防脱钩装置失效，有破损、缺件；其他：起重机吊钩存在变形', note:'/'}); renderBad(); render(); }
+function delBad(i){ BAD.splice(i,1); renderBad(); render(); }
+function updBad(i,k,v){ BAD[i][k]=v; render(); }
+function renderBad(){
+  const box=document.getElementById('badList');
+  box.innerHTML = BAD.map((b,i)=>`
+    <div class="badrow">
+      <button class="delbad" onclick="delBad(${i})">✕</button>
+      <div class="line"><span style="width:60px">序号</span><input value="${b.no}" oninput="updBad(${i},'no',this.value)"></div>
+      <div class="line"><span style="width:60px">条款号</span><input value="${b.clause}" oninput="updBad(${i},'clause',this.value)" placeholder="如 C3.8.1(2)"></div>
+      <div class="line" style="align-items:flex-start"><span style="width:60px">检验情况</span><textarea oninput="updBad(${i},'text',this.value)">${b.text}</textarea></div>
+    </div>`).join('') || '<div style="font-size:12px;color:#888;margin-bottom:8px">暂无不合格项</div>';
+}
+
+/* 条款号：C3.8.1(2) → 3.8.1.2 */
+function clauseNo(c){
+  return c.replace(/^\*?C/,'').replace(/\((\d+)\)/g,'.$1');
+}
+
+/* ============================================================
+   检验项目数据
+   ============================================================ */
+// g: 检验项目列（最多3层，null 表示并入上一行的合并格）
+// c: 检验内容和要求 / ch: 子项数组
+const ITEMS = [
+{n:1,g:['C2.2技术资料和文件审查'],c:'C2.2.8使用过程技术资料\n根据使用单位提供的技术文件，核查上次检验报告、使用登记证以及使用单位使用记录（包括日常使用状况记录、日常维护保养记录、自行检查记录、修理记录、运行故障和事故记录等）是否齐全，并且是否存档保管',s:'使用过程技术资料齐全',r:'符合',k:'√'},
+{n:2,g:['C3.4附设装置检查'],c:'起重机械上附着的用于维修等使用的起重设备：应符合规定和设计文件的要求',s:'未设置附设装置',r:'不适用',k:'-'},
+{n:3,g:['C3.5结构型式、主要配置和标志检查'],c:'C3.5.3标记、产品铭牌与安全警示标志\n检查标记、产品铭牌与安全警示标志；应符合规定',s:'标记、产品铭牌、安全警示标志符合规定',r:'符合',k:'√'},
+{n:4,g:['C3.7材料和结构件检查'],c:'C3.7.3(1)主要受力结构件的连接焊缝无明显可见的裂纹',s:'连接焊缝无明显裂纹',r:'符合',k:'√'},
+{n:5,g:[null],c:'C3.7.3(2)主要受力结构件断面有效厚度不低于设计厚度的90%',s:'主要受力结构件断面有效厚度符合要求',r:'符合',k:'√'},
+{n:6,g:[null],c:'C3.7.3(3)螺栓和销轴等连接：无明显松动、缺件、损坏等缺陷',s:'螺栓、销轴无缺陷',r:'符合',k:'√'},
+{n:7,g:[null],c:'C3.7.4门、梯子、走台和栏杆\n梯子、扶手、护圈、平台、走台、踢脚板和栏杆等；按照规定和设计文件要求设置',s:'设计无门、梯子、走台和栏杆',r:'不适用',k:'-'},
+{n:8,g:['C3.8主要零部件检查'],c:'C3.8.1(1)钢丝绳的固定连接、压板或者绳夹的数量、钢丝绳安全圈数和绕绳余量：符合规定；链条与链轮：啮合正确，无卡阻和冲击现象',s:'钢丝绳或链条链轮符合要求',r:'符合',k:'√'},
+{n:9,g:[null],c:'C3.8.1(2)吊钩、起重磁铁、抓斗、横梁等吊具悬挂牢固可靠；吊钩设置防重物意外脱钩的保险装置（司索人员无法靠近吊钩的除外）有效；吊钩不应当焊补；铸造起重机钩口防磨保护鞍座完整',s:'吊具符合要求',r:'符合',k:'√'},
+{n:10,g:[null],c:'C3.8.1(3)滑轮防钢丝绳脱槽装置：应设置，滑轮罩相应间隙不超过钢丝绳直径的0.5倍',s:'防钢丝绳脱槽装置符合要求',r:'符合',k:'√'},
+{n:11,g:[null],c:'C3.8.1(4)特殊场合(如吊运炽热金属、熔融金属或者危险品等)使用的起重机械钢丝绳：未达到报废标准',s:'非特殊场合使用及防爆型起重机',r:'不适用',k:'-'},
+{n:12,g:[null],c:'C3.8.3(1)检查吊具、电动机、钢丝绳、滑轮、卷筒、制动器、司机室、主梁隔热板：应符合规定',s:'非吊运熔融金属的冶金桥式起重机',r:'不适用',k:'-'},
+{n:13,g:[null],c:'C3.8.3(2)检查起升机构是否符合规定',s:'非吊运熔融金属的冶金桥式起重机',r:'不适用',k:'-'},
+{n:14,g:['C3.9液压和气压系统检查'],c:'检查液压系统和气动系统：应符合规定和设计文件的要求',s:'非液压系统和气动系统',r:'不适用',k:'-'},
+{n:15,g:['C3.10司机室检查'],c:'司机室，配置及其防护应符合规定',s:'未配置司机室',r:'不适用',k:'-'},
+{n:16,g:['C3.11电气系统检查'],c:'C3.11.1(1)检查电气设备及元件的选择和防护，应符合规定，电气设备功能齐全',s:'功能齐全，电气设备及元件的选择和防护符合规定',r:'符合',k:'√'},
+{n:17,g:[null],c:'C3.11.1(2)防爆型、绝缘型起重机械电气设备及其元器件：与工作环境的防爆、绝缘、温度等级相适应，有防护措施',s:'非防爆型和绝缘型起重机械',r:'不适用',k:'-'},
+{n:18,g:[null],c:'C3.11.1(3)检查吊运熔融金属的冶金桥式起重机电气设备及其元器件：应符合规定',s:'非吊运熔融金属的冶金桥式起重机',r:'不适用',k:'-'},
+{n:19,g:[null],c:'C3.11.2(1)检查无线遥控装置的设置：应符合规定',s:'设置符合要求',r:'符合',k:'√'},
+{n:20,g:[null],c:'C3.11.2(2)吊运熔融金属的冶金桥式起重机采用电动葫芦作为起升机构时其操纵方式：应符合规定',s:'非吊运熔融金属的冶金桥式起重机未采用电动葫芦作为起升机构',r:'不适用',k:'-'},
+{n:21,g:['C3.11.3电气保护'],k:'√',ch:[
+  {c:'1.电动机保护的配置；应符合规定',s:'配置符合要求',r:'符合'},
+  {c:'2.线路保护的配置；应符合规定和设计文件的要求',s:'配置符合要求',r:'符合'},
+  {c:'3.错相和缺相保护；当错相和缺相会引起危险时，应当设置且符合规定和设计文件的要求',s:'配置符合要求',r:'符合'},
+  {c:'4.零位保护：起重机械各传动机构应当配置且符合规定和设计文件的要求（自动复位的操作手柄和按键除外）',s:'未配置零位保护功能',r:'不适用'},
+  {c:'5.失压保护：应当配置且符合规定和设计文件的要求',s:'配置符合要求',r:'符合'},
+  {c:'6.电动机定子异常失电保护：吊运熔融金属或者发生事故后可能造成重大危险与损失的起升机构，其电动机应当配置且符合规定和设计文件的要求',s:'产品未配置电动机组定子异常失电保护',r:'不适用'},
+  {c:'7.超速保护的配置：应符合规定和设计文件的要求',s:'未配置超速保护',r:'不适用'},
+  {c:'8.接地与防雷：应符合规定和设计文件的要求',s:'配置符合要求',r:'符合'},
+  {c:'9.失磁保护：应符合规定和设计文件的要求',s:'未配置失磁保护',r:'不适用'},
+  {c:'10.联锁保护：应符合规定和设计文件的要求',s:'未配置联锁保护',r:'不适用'}
+]},
+{n:22,g:[null],c:'C3.11.4隔离开关和总断路器：配置应符合规定和设计文件的要求',s:'符合要求',r:'符合',k:'√'},
+{n:23,g:[null],c:'C3.11.5急停开关；按规定设置',s:'按规定设置，动作有效',r:'符合',k:'√'},
+{n:24,g:[null],c:'C3.11.6照明设备：按要求配置，照明回路符合规定',s:'设计无照明设备配置要求',r:'不适用',k:'-'},
+{n:25,g:[null],c:'C3.11.7起重电磁铁的电源：应符合规定和设计文件的要求',s:'未配置起重电磁铁',r:'不适用',k:'-'},
+{n:26,g:['C3.11.9安全监控管理系统的系统功能、信息采集和存储',null],c:'C3.11.9.1管理权限的设定\n现场核实系统管理员的授权，应符合下列规定：系统的进入应当有登录密码或者更高级的身份识别方式',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:27,g:[null],c:'C3.11.9.2故障自诊断\n开机进入系统后，现场核实系统运行自行检查程序的结果，检查是否符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:28,g:[null],c:'C3.11.9.3报警装置\n在空载的条件下，通过按急停或者系统设计的报警信号现场验证起重机械各种报警装置的动作，检查是否符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:29,g:[null],c:'C3.11.9.4文字表达形式\n现场目测系统显示的所有界面的文字表达形式为简体中文',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:30,g:[null],c:'C3.11.9.5显示信息的清晰度\n检验人员坐在司机室的座位上，斜视45°，是否可清晰完整地观察到整个监控画面，包括视频系统的画面，画面上显示的信息不刺目、不干扰视线，清晰可辨',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:31,g:[null],c:'C3.11.9.6历史追溯性\n调取连续工作一个工作循环过程中存储的所有信息，检查系统存储的数据信息或者图像信息应当包含数据或者图像的编号，时间和日期与试验的数据应当一致，并且检查是否符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:32,g:[null],c:'C3.11.9.7采样周期\n检查系统实际程序的采样周期是否符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:33,g:[null],c:'C3.11.9.8断电后信息的保存\n现场验证，当起重机主机电源断电后，系统能持续工作，调取连续作业的时间内存储的数据，检查是否符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:34,g:[null],c:'C3.11.9.9存储时间和格式：符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:35,g:[null],c:'C3.12.2安全监控管理系统信息采集源：完整，符合规定',s:'未配置安全监控管理系统',r:'不适用',k:'-'},
+{n:36,g:['C3.12安全保护和防护装置检查',null],c:'C3.12.3.2制动装置控制：应符合规定',s:'制动器控制符合规定',r:'符合',k:'√'},
+{n:37,g:[null,'C3.12.3.3零件状况'],k:'-',ch:[
+  {c:'（1）制动器零件无裂纹、过度磨损(摩擦片磨损达原厚度的50%或者露出铆钉)、塑性变形、缺件等缺陷',s:'全封闭制动器、具有三合一机构的制动器和制动电机中的制动器',r:'不适用'},
+  {c:'（2）制动器打开时制动轮与摩擦片无摩擦现象，制动器闭合时制动轮与摩擦片接触均匀，无影响制动性能的缺陷和油污',s:'全封闭制动器、具有三合一机构的制动器和制动电机中的制动器',r:'不适用'},
+  {c:'（3）制动器推杆无漏油现象',s:'全封闭制动器、具有三合一机构的制动器和制动电机中的制动器',r:'不适用'}
+]},
+{n:38,g:[null,'C3.12.4除制动器外安全保护和防护装置'],k:'√',ch:[
+  {c:'1.起升高度限制器：应符合规定和设计文件的要求',s:'起升高度限制器配置符合要求',r:'符合'},
+  {c:'2.下降深度限位器配置应符合规定和设计文件的要求',s:'未配置下降深度限位器',r:'不适用'},
+  {c:'3.抗风防滑装置：应符合规定和设计文件的要求',s:'未配置抗风防滑装置',r:'不适用'},
+  {c:'4.防倾翻安全钩：吊具装在主梁一侧的单主梁起重小车、其他有类似防止发生倾翻要求的起重小车，以及有抗震要求的起重机械，应当配置且运行无卡阻现象',s:'产品未配置防倾翻安全钩',r:'不适用'},
+  {c:'5.缓冲器配置：应符合规定和设计文件的要求',s:'缓冲器符合要求',r:'符合'},
+  {c:'6.轨道端部止挡：按设计要求装设，且牢固可靠，能防止脱轨',s:'轨道端部止挡符合要求',r:'符合'},
+  {c:'7.起重量限制器配置：起升机构装设了起重量限制器，且未被短接',s:'起重量限制器符合要求',r:'符合'},
+  {c:'8.偏斜显示或限制装置：跨度大于40m的门式起重机设有偏斜显示装置或者限制装置',s:'未配置偏斜显示或限制装置',r:'不适用'},
+  {c:'9.运行行程限位器：起重小车（悬挂型电动葫芦运行小车、小车运行速度＜25m/min的电动单梁、电动葫芦桥、门式起重机除外）和起重机大车，在每个运行方向装设运行行程限位器',s:'运行行程限位器符合要求',r:'符合'},
+  {c:'10.障碍灯配置：室外起重机总高度大于30m时，且周围无高于起重机械顶尖的建筑物和其他设施，两台起重机械之间有可能相碰，或起重机械及其结构妨碍空运或水运时，在其端部装设红色障碍灯',s:'产品未配置障碍灯',r:'不适用'},
+  {c:'11.风速仪及风速报警器配置：室外作业的高大起重机应装有风速仪且安装在起重机上部迎风处；室外作业的高大起重机应装有显示瞬时风速的风速报警器，且当风力大于工作状态的计算风速设定值时，应能发出警报信号',s:'未配置风速仪及风速报警器',r:'不适用'},
+  {c:'12.轨道清扫器：当物料有可能积存在轨道上成为运行的障碍时，检查在轨道上行驶的起重机和起重小车，在台车架（或者端梁）下面和小车架下面应装设轨道清扫器',s:'产品未配置轨道清扫器',r:'不适用'},
+  {c:'13.防护罩、防护栏：外露的有伤人可能的活动零部件，如开式齿轮、联轴器、传动轴、链轮、链条、传动带、皮带轮等处应装设有防护罩或防护栏；露天工作起重机的电气设备应有防雨措施；防护罩或防护栏、防雨措施与起重机械的连接固定可靠、无缺件',s:'防护罩、防护栏符合要求',r:'符合'},
+  {c:'14.电缆卷筒终端限位装置：采用电缆卷筒供电的起重机，当运行机构行程大于电缆长度时，在放缆终点处应设置限位开关',s:'未配置电缆卷筒终端限位装置',r:'不适用'},
+  {c:'15.防碰撞装置：当2台或2台以上的起重机或起重小车运行在同一或者不同一轨道上且可能碰撞时，应设置防碰撞装置',s:'防碰撞装置符合要求',r:'符合'}
+]},
+{n:39,g:['C3.13隔热、降温措施检查'],c:'高温环境使用的起重机，检查其隔热防护、降温等防护措施是否符合规定',s:'/',r:'不适用',k:'-'},
+{n:40,g:['C3.14绝缘电阻检查'],c:'电气设备绝缘：应符合规定和设计文件的要求',s:'绝缘电阻符合规定',r:'符合',k:'√'},
+{n:41,g:['C4.2空载试验'],c:'C4.2.2.1操纵、控制、联锁、互锁、馈电情况：操纵系统、控制系统、联锁、互锁装置动作可靠、准确，馈电装置工作正常',s:'操纵机构、控制系统、联锁、互锁装置动作可靠、准确，馈电装置工作正常',r:'符合',k:'√'},
+{n:42,g:[null],c:'C4.2.2.2限位装置：各限位装置(如起升高度、下降深度、运行行程等行程限位器)动作可靠、准确',s:'限位装置动作可靠、准确',r:'符合',k:'√'},
+{n:43,g:[null],c:'C4.2.2.3液压系统：液压系统工作压力符合要求，并且系统无泄露',s:'无液压系统',r:'不适用',k:'-'},
+{n:44,g:[null],c:'C4.2.2.4运转情况：各工作机构动作平稳、运行正常，能够实现规定的功能和动作，无爬行、震颤、冲击、过热、异常噪声等现象；起重机械沿轨道全长运行无啃轨现象',s:'运转正常，无啃轨现象',r:'符合',k:'√'},
+{n:45,g:[null,'C4.2.2.5安全监控管理系统专项检验：应符合规定'],c:'C4.2.2.5.1参数验证：符合要求',s:'无安全监控管理系统',r:'不适用',k:'-'},
+{n:46,g:[null,'C4.2.2.5安全监控管理系统专项检验：应符合规定'],c:'C4.2.2.5.2状态验证：符合要求',s:'无安全监控管理系统',r:'不适用',k:'-'},
+{n:47,g:[null,'C4.2.2.5安全监控管理系统专项检验：应符合规定'],c:'C4.2.2.5.3信息采集实时性验证：符合要求',s:'无安全监控管理系统',r:'不适用',k:'-'},
+{n:48,g:['C4.9其他性能试验','C4.9.1架桥机'],c:'C4.9.1.1架桥机过孔试验：应符合规定',s:'非架桥机',r:'不适用',k:'-'},
+{n:49,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.1安全监控管理系统其他检验项目—风速；实测数据与系统实时显示的风速一致、功能符合要求',s:'非室外起重机',r:'不适用',k:'-'},
+{n:50,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.2安全监控管理系统其他检验项目—支腿垂直度；实测数据与系统实时显示的支腿垂直度的数据一致',s:'非架桥机',r:'不适用',k:'-'},
+{n:51,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.3安全监控管理系统其他检验项目—工作时间；测量起重机各机构动作时间点、时间段，与监控系统对应值一致',s:'/',r:'不适用',k:'-'},
+{n:52,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.4安全监控管理系统其他检验项目—累计工作时间；测量并且记录连续多个工作循环的时间，调取试验过程系统中存储的时间数据',s:'/',r:'不适用',k:'-'},
+{n:53,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.5安全监控管理系统其他检验项目—每次工作循环；系统中显示和记录的工作循环增加次数与试验过程中增加的次数一致',s:'/',r:'不适用',k:'-'},
+{n:54,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.6安全监控管理系统其他检验项目—抗风防滑状态；进行夹轨器、锚定等抗风防滑装置的闭合性试验，系统中显示状态与模拟动作状态一致',s:'非室外轨道起重机',r:'不适用',k:'-'},
+{n:55,g:[null,'C4.9.7安装安全监控系统其他检验项目'],c:'C4.9.7.7安全监控管理系统其他检验项目—供电电缆卷筒状态；系统是否能够识别供电电缆卷筒的状态，功能符合要求',s:'未采用供电电缆卷筒',r:'不适用',k:'-'},
+{n:56,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.1永磁直驱电动机作为起升机构漏磁检查：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:57,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.2永磁直驱电动机作为起升机构紧急制动试验：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:58,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.3永磁直驱电动机作为起升机构冗余超速保护试验：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:59,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.4永磁直驱电动机作为起升机构过热保护功能试验：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:60,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.5永磁直驱电动机作为起升机构过电流保护功能试验：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:61,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.6单制动试验：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:62,g:[null,'C4.9.8使用永磁直驱电动机作为起升机构的起重机械专项试验'],c:'C4.9.8.7采用永磁直驱电动机作为起升机构的起重机械禁用要求：符合要求',s:'未采用永磁直驱电动机作为起升机构',r:'不适用',k:'-'},
+{n:63,g:[null,'C4.9.9具有自动化功能的起重机械专项试验'],c:'C4.9.9具有自动化功能的起重机械专项试验：对具有自动化功能的起重机械，根据要求对电气系统等进行功能验证与试验',s:'不具有自动化功能',r:'不适用',k:'-'},
+{n:64,g:['C5其他检验和试验项目'],c:'根据起重机械产品的新特点、新功能、新要求等情况，检验机构应当对该起重机械存在的其他安全风险进行研判和评估，确定需要增加的检验和试验项目，应当经检验机构相关负责人批准后方可纳入检验',s:'不具有新特点、新功能、新要求等情况',r:'不适用',k:'-'}
+];
+
+const AP2 = [
+{n:1,code:'F1合格证',c:'有附着的起重设备的合格证。',s:'不存在'},
+{n:2,code:'F2自检合格证明',c:'监督检验时，有施工单位盖章确认附着的起重设备的自检合格证明；定期检验时，有使用单位盖章确认附着的起重设备的自检合格证明。',s:'不存在'},
+{n:3,code:'F3标记',c:'起重设备设置永久性的明显可见的额定起重量标记。',s:'不存在'},
+{n:4,code:'F4金属结构连接',c:'主受力结构件（主梁、主支撑腿、葫芦的承载梁、悬臂）的连接：连接焊缝无明显可见的焊接缺陷；螺栓和销轴等连接：无松动，无缺件、损坏等缺陷',s:'/'},
+{n:5,code:'F5钢丝绳（环链）',c:'（1）钢丝绳绳端固定牢固、可靠；压板固定时压板不少于2个（电动葫芦不少于3个），除固定钢丝绳的圈数外，卷筒上至少保留2圈钢丝绳作为安全圈；\n（2）卷筒上的绳端固定装置有防松或者自紧的性能；用金属压制接头固定时，接头无裂纹；用楔块固定时，楔套无裂纹，楔块无松动；用绳夹固定时，绳夹安装正确，绳夹数满足要求。\n（3）环链不应有裂纹、开焊等缺陷，钢丝绳、环链的磨损、变形未达到相应标准的报废规定。',s:'不存在'},
+{n:6,code:'F6取物装置',c:'吊钩无焊补；设置了防脱钩装置（司索人员无法靠近的除外）；吊钩等取物装置的磨损、变形未达到相应标准的报废规定。',s:'不存在'},
+{n:7,code:'F7导绳器',c:'配备有导绳装置的卷筒在整个工作范围内有效排绳，无卡阻现象。',s:'未配备导绳器'},
+{n:8,code:'F8制动器',c:'制动器调整适宜，制动平稳可靠。',s:'不存在'},
+{n:9,code:'F9臂架回转',c:'旋臂回转为无限制回转时，应使用滑环装置，以保证臂架回转时馈电不受限制；旋臂在限定范围内回转时，不需要滑环装置，但应安装挡块以防止超出限定的范围。',s:'产品不具备回转功能'},
+{n:10,code:'F10控制装置',c:'设置了红色的、非自动复位的紧急停止开关；标识清晰、正确，功能正常。',s:'不存在'},
+{n:11,code:'F11总电源开关',c:'起重设备供电电源应设总电源开关。',s:'不存在'},
+{n:12,code:'F12线路保护',c:'动力、控制线路具有短路或者接地引起的过电流保护功能。',s:'不存在'},
+{n:13,code:'F13错相和缺相保护',c:'当错相和缺相会引起危险时，装设错相和缺相保护。',s:'错相和缺相不会引起危险'},
+{n:14,code:'F14失压保护',c:'当起重机械供电电源中断后，凡涉及安全或者不宜自动开启的用电设备均处于断电状态，避免恢复供电后用电设备自动运行',s:'不存在'},
+{n:15,code:'F15起升高度限位器',c:'（1）设置了起升高度（下降深度）限位器。当吊具起升（下降）到极限位置时，是否能够自动切断动力源。',s:'不存在'},
+{n:16,code:'F16运行行程限位器',c:'（1）大车运行机构设置了行程限位器（柔性组合式悬挂起重机除外）；\n（2）小车运行机构（悬挂型电动葫芦运行小车，小车运行速度＜25m/min的电动单梁、电动葫芦桥、门式起重机除外）设置了行程限位器；\n（3）各机构达到设计规定的限位位置时限位器动作，自动切断相应前进方向的动力源，并能停止相应方向的运行',s:'无大车运行机构，小车运行机构符合不设置行程限位器的情况'},
+{n:17,code:'F17回转限位',c:'需要限制回转范围的悬臂起重机，回转机构安装了回转角度限位装置。',s:'设备不需要限制回转范围'},
+{n:18,code:'F18缓冲器和端部止挡',c:'大、小车运行机构设置了缓冲器或者缓冲装置和端部止挡装置；轨道端部止挡装置固定良好，无松动，无裂纹，无明显变形等。',s:'/'},
+{n:19,code:'F19起重量限制器',c:'起重设备装设了起重量限制器或者安全离合器，且起重量限制器未被短接。',s:'/'},
+{n:20,code:'F20空载试验',c:'各机构运转正常，制动可靠；操纵系统、电气控制系统工作正常；起重机械沿轨道全长运行无啃轨现象；各种安全保护装置工作可靠有效。',s:'/'}
+];
+
+/* ============================================================
+   规则引擎
+   ============================================================ */
+function buildItems(c){
+  const out = ITEMS.map(it=>{ const o={}; for(const k in it) o[k]=it[k]; if(it.ch) o.ch=it.ch.map(x=>{const y={};for(const k in x)y[k]=x[k];return y;}); return o; });
+  const get = n => out.find(x=>x.n===n);
+  const hasCabin=c.cabin==='有', hasRemote=c.remote==='有', hasDoor=c.door==='有';
+  const hasVs=c.vspeed==='有', inBridge=c.bridge==='有', isHoist=(c.hoist==='电动葫芦');
+
+  // 规则001 序号7
+  const i7=get(7);
+  if(hasDoor){ i7.s='门、梯子、走台和栏杆符合要求'; i7.r='符合'; i7.k='√'; }
+  else { i7.s='设计无门、梯子、走台和栏杆'; i7.r='不适用'; i7.k='-'; }
+
+  // 规则003 序号15
+  const i15=get(15);
+  if(hasCabin){ i15.s='司机室配置及其防护符合规定'; i15.r='符合'; i15.k='√'; }
+  else { i15.s='未配置司机室'; i15.r='不适用'; i15.k='-'; }
+
+  // 规则004 序号19
+  const i19=get(19);
+  if(hasRemote){ i19.s='设置符合要求'; i19.r='符合'; i19.k='√'; }
+  else { i19.s='未配置无线遥控装置'; i19.r='不适用'; i19.k='-'; }
+
+  // 规则005/006/007 序号21 子项4/7/10
+  const i21=get(21);
+  if(hasCabin){ i21.ch[3].s='配置符合要求'; i21.ch[3].r='符合'; }
+  else { i21.ch[3].s='未配置零位保护功能'; i21.ch[3].r='不适用'; }
+  if(hasVs){ i21.ch[6].s='配置符合要求'; i21.ch[6].r='符合'; }
+  else { i21.ch[6].s='未配置超速保护'; i21.ch[6].r='不适用'; }
+  if(hasCabin||inBridge){ i21.ch[9].s='配置符合要求'; i21.ch[9].r='符合'; }
+  else { i21.ch[9].s='未配置联锁保护'; i21.ch[9].r='不适用'; }
+
+  // 规则008 序号37 整条三子项
+  const i37=get(37);
+  if(isHoist){
+    i37.ch.forEach(x=>{ x.s='全封闭制动器、具有三合一机构的制动器和制动电机中的制动器'; x.r='不适用'; });
+    i37.k='-';
+  } else {
+    i37.ch.forEach(x=>{ x.s='制动器零件、动作及推杆符合要求'; x.r='符合'; });
+    i37.k='√';
+  }
+
+  // 规则009 / 010 序号38 子项12 / 15
+  const i38=get(38);
+  if(c.clean==='有'){ i38.ch[11].s='轨道清扫器符合要求'; i38.ch[11].r='符合'; }
+  else { i38.ch[11].s='产品未配置轨道清扫器'; i38.ch[11].r='不适用'; }
+  if(c.coll==='有'){ i38.ch[14].s='防碰撞装置符合要求'; i38.ch[14].r='符合'; }
+  else { i38.ch[14].s='未配置防碰撞装置'; i38.ch[14].r='不适用'; }
+
+  // 露天作业
+  if(c.env==='露天'){
+    i38.ch[9].s='障碍灯符合要求'; i38.ch[9].r='符合';
+    i38.ch[10].s='风速仪及风速报警器符合要求'; i38.ch[10].r='符合';
+    const i39=get(39); i39.s='隔热、降温措施符合要求'; i39.r='符合'; i39.k='√';
+  }
+
+  // 应用不合格项
+  BAD.forEach(b=>{
+    const it=get(Number(b.no));
+    if(!it) return;
+    if(it.ch && it.ch.length){
+      const m=String(b.clause).match(/\.(\d+)$/);
+      const idx = m ? Number(m[1])-1 : -1;
+      if(idx>=0 && idx<it.ch.length){ it.ch[idx].s=b.text; it.ch[idx].r='不符合'; }
+      else { it.s=b.text; it.r='不符合'; }
+    } else {
+      it.s=b.text; it.r='不符合'; it.k='×';
+    }
+  });
+
+  // 重算父项结论
+  [21,37,38].forEach(n=>{
+    const it=get(n);
+    if(it && it.ch){
+      if(it.ch.some(x=>x.r==='不符合')) it.k='×';
+      else if(it.ch.some(x=>x.r==='符合')) it.k='√';
+      else it.k='-';
+    }
+  });
+
+  return out;
+}
+
+/* 展开成行 */
+function flatten(items){
+  const rows=[]; let lastG0=null;
+  items.forEach(it=>{
+    const g=it.g||[];
+    let g0=g[0];
+    if(g0===null||g0===undefined) g0=lastG0; else lastG0=g0;
+    const g1=(g.length>1 && g[1]!=null)?g[1]:null;
+    if(it.ch && it.ch.length){
+      it.ch.forEach((sub,si)=>rows.push({item:it,sub,si,g0,g1}));
+    } else {
+      rows.push({item:it,sub:null,si:0,g0,g1});
+    }
+  });
+  return rows;
+}
+
+function calcSpan(rows,getv){
+  const out=[]; let i=0;
+  while(i<rows.length){
+    const v=getv(rows[i]); let j=i;
+    while(j<rows.length && getv(rows[j])===v) j++;
+    out[i]={span:j-i,val:v};
+    for(let k=i+1;k<j;k++) out[k]={span:0,val:v};
+    i=j;
+  }
+  return out;
+}
+
+function sectionOf(n){
+  if(n===1) return {key:'C2', title:'C2资料和文件审查'};
+  if(n<=40) return {key:'C3', title:'C3设备检查'};
+  if(n<=63) return {key:'C4', title:'C4 性能试验'};
+  return {key:'C5', title:'C5其他检验和试验项目'};
+}
+
+/* ============================================================
+   表格渲染
+   ============================================================ */
+function renderOneTable(rows){
+  const useG1 = rows.some(r=>!!r.g1);
+  const spG0 = calcSpan(rows,r=>r.g0||'');
+  const spG1 = calcSpan(rows,r=>r.g1||'');
+  const spNo = calcSpan(rows,r=>r.item.n);
+  const needG1 = rows.map(()=>false);
+  rows.forEach((r,i)=>{
+    if(spG0[i].span){
+      const grp = rows.slice(i, i+spG0[i].span);
+      const any = grp.some(x=>!!x.g1);
+      for(let k=i;k<i+spG0[i].span;k++) needG1[k]=any;
+    }
+  });
+  let h='<table class="rt" style="flex-grow:'+rows.length+'"><colgroup>';
+  if(useG1){
+    h+='<col style="width:5%"><col style="width:7.6%"><col style="width:9.6%"><col style="width:31.4%"><col style="width:19.4%"><col style="width:9%"><col style="width:6.4%"><col style="width:11.6%">';
+  } else {
+    h+='<col style="width:5%"><col style="width:15.4%"><col style="width:33.4%"><col style="width:19.4%"><col style="width:9%"><col style="width:6.4%"><col style="width:11.4%">';
+  }
+  h+='</colgroup><thead><tr><th>序号</th><th colspan="'+(useG1?2:1)+'">检验项目</th><th>检验内容和要求</th><th>检验情况</th><th>检验结果</th><th>结论</th><th>备注</th></tr></thead><tbody>';
+
+  rows.forEach((r,i)=>{
+    h+='<tr>';
+    if(spNo[i].span) h+='<td class="c" rowspan="'+spNo[i].span+'">'+r.item.n+'</td>';
+    if(spG0[i].span){
+      const cs=(useG1 && !needG1[i])?2:1;
+      h+='<td class="v" rowspan="'+spG0[i].span+'"'+(cs>1?' colspan="2"':'')+'>'+(r.g0||'')+'</td>';
+    }
+    if(useG1 && needG1[i] && spG1[i].span){
+      h+='<td class="v" rowspan="'+spG1[i].span+'">'+(r.g1||'')+'</td>';
+    }
+    h+='<td class="l">'+((r.sub?r.sub.c:r.item.c)||'').replace(/\n/g,'<br>')+'</td>';
+    h+='<td class="c">'+((r.sub?r.sub.s:r.item.s)||'/')+'</td>';
+    h+='<td class="c">'+((r.sub?r.sub.r:r.item.r)||'')+'</td>';
+    if(spNo[i].span){
+      h+='<td class="c mark" rowspan="'+spNo[i].span+'">'+(r.item.k||'')+'</td>';
+      h+='<td class="c" rowspan="'+spNo[i].span+'">/</td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  return h;
+}
+
+function renderItemPage(pageRows){
+  const groups=[];
+  pageRows.forEach(r=>{
+    const s=sectionOf(r.item.n);
+    if(!groups.length || groups[groups.length-1].key!==s.key) groups.push({key:s.key,title:s.title,rows:[]});
+    groups[groups.length-1].rows.push(r);
+  });
+  let h='<div class="formid">Q-002-D</div>';
+  groups.forEach(g=>{ h+='<div class="pagetitle-sm">'+g.title+'</div>'+renderOneTable(g.rows); });
+  return '<div class="page">'+h+'</div>';
+}
+
+/* ============================================================
+   各页渲染
+   ============================================================ */
+function pgCover(c){
+  const bad = BAD.length>0;
+  const dateTxt = bad ? (c.d1||``)+`　　至　　`+(c.d2||``) : (c.d1||``);
+  return `<div class="page">
+    <div class="formid">Q-002-D</div>
+    <div class="cv-top">
+      <div class="row"><div class="lbl">流水号：</div><div class="val">`+(c.sn||``)+`</div></div>
+      <div class="row"><div class="lbl">报告编号：</div><div class="val">`+(c.rep||``)+`</div></div>
+      <div class="row"><div class="lbl">收费金额：</div><div class="val">`+(c.fee||``)+`</div></div>
+    </div>
+    <div class="cover-head">起重机械定期检验原始记录</div>
+    <div class="cover-sub">（适用于桥、门式起重机）</div>
+    <div class="cv-form">
+      <div class="row"><div class="lbl">使 用 单 位 名 称：</div><div class="val">`+(c.unit||``)+`</div></div>
+      <div class="row"><div class="lbl">设 备 类 别：</div><div class="val">`+(c.cat||``)+`</div></div>
+      <div class="row"><div class="lbl">设 备 品 种：</div><div class="val">`+(c.kind||``)+`</div></div>
+      <div class="row"><div class="lbl">使用登记证编号：</div><div class="val">`+(c.reg||``)+`</div></div>
+      <div class="row"><div class="lbl">检 验 日 期：</div><div class="val">`+dateTxt+`</div></div>
+      <div class="row"><div class="lbl">检 验 结 论：</div><div class="val">合格</div></div>
+      <div class="row"><div class="lbl">检 验 人 员：</div><div class="val">`+(c.ins1||``)+`</div></div>
+      <div class="row"><div class="lbl">校 核 人 员：</div><div class="val">`+(c.ins2||``)+`</div></div>
+      <div class="row"><div class="lbl">审 核 人 员：</div><div class="val">`+(c.ins3||``)+`</div></div>
+      <div class="row"><div class="lbl">录 入 人 员：</div><div class="val">`+(c.ins4||``)+`</div></div>
+    </div>
+    <div style="position:absolute;bottom:34mm;left:0;right:0;text-align:center;font-size:17px;font-weight:700;letter-spacing:2px">成都市特种设备检验检测研究院</div>
+  </div>`;
+}
+
+function pgNotes(){
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div class="pagetitle">填写说明</div>
+    <div class="inst">
+      <p>1、本记录应当按照《起重机械定期(首次)检验原始记录填写规则》要求填写。</p>
+      <p>2、有测试数据要求的项目，填写实测数据；有范围要求的，填写最小和最大数据；有最大值或最小值要求的，填写最大或最小数据。</p>
+      <p>3、既有测试数据要求又有定性要求的项目，按以下要求填写：</p>
+      <p style="padding-left:2em">（1）定性要求部分检验为合格的，按第2条要求填实测数据；</p>
+      <p style="padding-left:2em">（2）定性要求部分检验为不合格的，应填写定性要求不合格的内容，并按第2条要求填实测数据。</p>
+      <p>4、标记说明</p>
+      <p style="padding-left:2em">（1）检验条件：填写“√”、“×”分别表示“符合检验条件”、“不符合检验条件”。</p>
+      <p style="padding-left:2em">（2）仪器设备使用状况：填写“/”、“√”、“×”，分别表示“未选用”、“符合要求”和“不符合要求”。</p>
+      <p style="padding-left:2em">（3）检验记录栏：</p>
+      <p style="padding-left:4em">a. 根据检验结论勾选相应的检验结果（“符合”、“不符合”、“不适用”），并在检验情况栏勾选相应的检验情况；</p>
+      <p style="padding-left:4em">b. 凡检验结果为“不符合”的项目，且检验情况中无相应选项，则应勾选“其他”选项并用文字表述具体检验情况。</p>
+      <p>5、检验项目有不合格项的，应在《附录3起重机械初检不合格项及整改情况记录表》中填写不合格项和整改情况。</p>
+      <p>6、本记录应当有执行当次检验的检验人员、校核人员的签字和检验日期，否则记录无效。</p>
+    </div>
+  </div>`;
+}
+
+function pgParams(c){
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div class="pagetitle">起重机械定期检验原始记录</div>
+    <table class="pinfo">
+      <tr><td class="k">使 用 单 位</td><td colspan="5" class="wide">`+(c.unit||``)+`</td></tr>
+      <tr><td class="k">使用单位地址</td><td colspan="5" class="wide">`+(c.addr||``)+`</td></tr>
+      <tr><td class="k">使 用 地 点</td><td colspan="5" class="wide">`+(c.place||``)+`</td></tr>
+      <tr><td class="k">使用单位统一<br>社会信用代码</td><td colspan="2" class="wide">`+(c.credit||``)+`</td><td class="k" style="width:20%">使用单位<br>安全管理人员</td><td colspan="2" class="wide">`+(c.safe||``)+`</td></tr>
+      <tr><td class="k">使用单位联系电话</td><td colspan="2" class="wide">`+(c.tel||``)+`</td><td class="k">邮政编码</td><td colspan="2" class="wide">`+(c.zip||``)+`</td></tr>
+      <tr><td class="k">制 造 单 位 名 称</td><td colspan="5" class="wide">`+(c.maker||``)+`</td></tr>
+      <tr><td class="k">改造(重大修理)<br>单 位 名 称</td><td colspan="5" class="wide">`+(c.mod||``)+`</td></tr>
+      <tr><td class="k">设 备 类 别</td><td colspan="2" class="wide">`+(c.cat||``)+`</td><td class="k">设 备 品 种</td><td colspan="2" class="wide">`+(c.kind||``)+`</td></tr>
+      <tr><td class="k">型 号 规 格</td><td colspan="2" class="wide">`+(c.model||``)+`</td><td class="k">设 备 代 码</td><td colspan="2" class="wide" style="font-size:9px">`+(c.devcode||``)+`</td></tr>
+      <tr><td class="k">产 品 编 号</td><td colspan="2" class="wide">`+(c.prod||``)+`</td><td class="k">单 位 内 编 号</td><td colspan="2" class="wide">`+(c.inner||``)+`</td></tr>
+      <tr><td class="k">投入使用日期</td><td colspan="2" class="wide">`+(c.used||``)+`</td><td class="k">设计使用年限</td><td colspan="2" class="wide">`+(c.life||``)+`</td></tr>
+      <tr>
+        <td class="grp" rowspan="4">主要<br>参数</td>
+        <td class="k" style="width:22%">额 定 起 重 量</td><td class="vv">`+(c.cap||``)+`</td><td class="unit">t</td>
+        <td class="k" style="width:20%">跨 度</td><td class="vv">`+(c.span||``)+` m</td>
+      </tr>
+      <tr>
+        <td class="k">起 升 速 度</td><td class="vv">`+(c.speed||``)+`</td><td class="unit">m/min</td>
+        <td class="k">起 升 高 度</td><td class="vv">`+(c.h||``)+` m</td>
+      </tr>
+      <tr>
+        <td class="k">整机工作级别</td><td class="vv">`+(c.level||``)+`</td><td class="unit"></td>
+        <td class="k">防 爆 等 级</td><td class="vv">`+(c.ex||``)+`</td>
+      </tr>
+      <tr><td class="k">其他主要参数</td><td colspan="4" class="wide">`+(c.other||``)+`</td></tr>
+      <tr><td class="k">工 作 环 境</td><td colspan="5" class="wide">`+(c.env||``)+`</td></tr>
+      <tr><td class="k">下次定期检验日期</td><td colspan="5" class="wide">`+(c.next||``)+`</td></tr>
+      <tr>
+        <td class="k" style="vertical-align:top;text-align:left">备注：</td>
+        <td colspan="5" class="remark">`+remarkHTML()+
+        `<div style="margin-top:14mm">在用起重机械设备的使用应与使用工况相匹配，严禁超范围、超参数使用。</div></td>
+      </tr>
+      <tr><td class="k">主要结构特征</td><td colspan="5" class="wide">`+(c.struct||``)+`</td></tr>
+      <tr><td class="k">主梁结构形式</td><td colspan="5" class="wide">`+(c.girder||``)+`</td></tr>
+      <tr><td class="k">电气操作装置</td><td colspan="5" class="wide">`+(c.ctrl||``)+`</td></tr>
+      <tr><td class="k">吊　　　具</td><td colspan="5" class="wide">`+(c.hook||``)+`</td></tr>
+      <tr><td class="k">小 车 形 式</td><td colspan="5" class="wide">`+(c.trolley||``)+`</td></tr>
+    </table>
+  </div>`;
+}
+
+function remarkHTML(){
+  if(BAD.length){
+    const cs=BAD.map(b=>clauseNo(b.clause)).join(`、`);
+    return `<div>`+cs+`复检合格。</div><div style="margin-top:6mm">/</div>`;
+  }
+  return `<div style="margin-top:6mm">/</div>`;
+}
+
+function pgBasis(c){
+  const used=[1,1,1,1,0,1,1,1,1,1,0,0,0,0,1];
+  const names=[[`万用表`,`±2%`],[`绝缘电阻测量仪`,`±1.5%`],[`接地电阻测量仪`,`±2%`],[`钳型电流表`,`±2%`],[`经纬仪 / 水准仪 / 全站仪`,`4″`],[`便携式测距仪`,`±1.5mm`],[`游标卡尺`,`0.02mm`],[`钢卷尺`,`1级`],[`钢直尺`,`1级`],[`塞尺`,`1级`],[`百分表`,`0.01mm`],[`万能角度尺`,`/`],[`塔尺`,`/`],[`斜尺`,`/`],[`超声波测厚仪`,`± 0.5%`]];
+  let rows=``;
+  for(let i=0;i<21;i++){
+    if(i<15){
+      rows+=`<tr><td class="c">`+(i+1)+`</td><td class="l" style="padding-left:6px">`+names[i][0]+`</td><td class="c">`+names[i][1]+`</td><td class="c">`+(used[i]?`√`:`/`)+`</td><td class="c">/</td></tr>`;
+    } else {
+      rows+=`<tr><td class="c">`+(i+1)+`</td><td class="c">/</td><td class="c">/</td><td class="c">/</td><td class="c">/</td></tr>`;
+    }
+  }
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div class="pagetitle">起重机械定期检验原始记录</div>
+    <table class="pinfo">
+      <tr><td colspan="5" class="c" style="font-weight:700;letter-spacing:3px">检验依据</td></tr>
+      <tr><td colspan="5" style="padding:3px 6px">《起重机械安全技术规程》(TSG 51-2023) （含第1号修改单）</td></tr>
+      <tr><td colspan="5" class="c" style="font-weight:700;letter-spacing:3px">检验条件</td></tr>
+      <tr><td colspan="5" class="cond">
+        <div>√1.现场没有影响检验的物品、设施，并且设置相应的警示标志；</div>
+        <div>√2.现场动力源、环境温度、海拔高度、风速符合标准和设计要求；</div>
+        <div>√3.检验现场不得有易燃、易爆以及腐蚀性气体；</div>
+        <div>√4.检验仪器设备经过计量检定（校准）合格，并且在有效期内。</div>
+      </td></tr>
+      <tr><td colspan="5" class="c" style="font-weight:700;letter-spacing:3px">检验主要仪器设备</td></tr>
+      <tr><td colspan="5" class="c">本次检验使用的工具箱为　　<b>`+(c.box||``)+`</b>　　号</td></tr>
+      <tr><td class="c" style="width:9%">序号</td><td class="c" style="width:40%">仪器、量具名称</td><td class="c" style="width:20%">精度要求</td><td class="c" style="width:16%">使用状况</td><td class="c" style="width:15%">备 注</td></tr>
+      `+rows+`
+    </table>
+  </div>`;
+}
+
+function pgAp1(c){
+  const dbl = c.rope===`双钢丝绳`;
+  const fix = v => { if(!dbl) return v; return String(v).includes(`/`)?v:(v+`/`+v); };
+  const cg = c.clean===`有` ? (c.cleanGap||`/`) : `/`;
+  const cgR = c.clean===`有` ? `符合` : `不适用`;
+  const cgK = c.clean===`有` ? `√` : `-`;
+  const ins = c.ins||`>550`;
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div style="font-size:13px;font-weight:700">附录1</div>
+    <div class="pagetitle">测量数据与计算过程</div>
+    <table class="rt">
+      <colgroup><col style="width:6%"><col style="width:18%"><col style="width:56%"><col style="width:11%"><col style="width:9%"></colgroup>
+      <thead><tr><th>序号</th><th>项目<br>编号</th><th>测量或计算过程</th><th>计算结果</th><th>结论</th></tr></thead>
+      <tbody>
+      <tr>
+        <td class="c">1</td>
+        <td class="c">C3.8（钢丝绳的固定连接、压板或者绳夹的数量、钢丝绳安全圈数和绕绳余量）</td>
+        <td class="l" style="padding:4px 8px">
+          压板　<span class="underline">`+fix(c.clamp)+`</span>　个<br>
+          安全圈　<span class="underline">`+fix(c.turn)+`</span>　圈<br>
+          <div style="text-align:center;font-size:10px;margin:3px 0">（钢丝绳一端固定填写1组数据，钢丝绳两端固定填写2组数据）</div>
+          绳卡数　<span class="underline">`+(c.clip||`/`)+`</span>　个<br>
+          绳卡间距　<span class="underline">`+(c.gap||`/`)+`</span>　mm
+        </td>
+        <td class="c">符合</td><td class="c mark">√</td>
+      </tr>
+      <tr>
+        <td class="c">2</td>
+        <td class="c">C3.11.3（接地与防雷）</td>
+        <td class="l" style="padding:4px 8px">
+          接地电阻：<br>
+          <div style="padding-left:2em">TN　<span class="underline">`+(c.tn||`/`)+`</span>　Ω</div><br>
+          <div style="padding-left:2em">TT/IT　<span class="underline">`+(c.tt||`/`)+`</span>　Ω</div>
+        </td>
+        <td class="c">符合</td><td class="c mark">√</td>
+      </tr>
+      <tr>
+        <td class="c">3</td>
+        <td class="c">C3.12.4（轨道清扫器）</td>
+        <td class="l" style="padding:4px 8px">大车运行机构扫轨板底面与轨道顶面之间的间隙　<span class="underline">`+cg+`</span>　mm</td>
+        <td class="c">`+cgR+`</td><td class="c mark">`+cgK+`</td>
+      </tr>
+      <tr>
+        <td class="c" rowspan="3">4</td>
+        <td class="c" rowspan="3">C3.14（绝缘电阻）</td>
+        <td class="l" style="padding:4px 8px">
+          主回路的相间绝缘电阻 R<sub>1</sub>= <span class="underline">`+ins+`</span> MΩ<br>
+          主回路的对地绝缘电阻 R<sub>2</sub>= <span class="underline">`+ins+`</span> MΩ
+        </td>
+        <td class="c">符合</td><td class="c mark">√</td>
+      </tr>
+      <tr>
+        <td class="l" style="padding:4px 8px">
+          控制回路的相间绝缘电阻 R<sub>3</sub>= <span class="underline">`+ins+`</span> MΩ<br>
+          控制回路的对地绝缘电阻 R<sub>4</sub>= <span class="underline">`+ins+`</span> MΩ
+        </td>
+        <td class="c">符合</td><td class="c mark">√</td>
+      </tr>
+      <tr>
+        <td class="l" style="padding:4px 8px">
+          电气设备的相间绝缘电阻 R<sub>5</sub>= <span class="underline">`+ins+`</span> MΩ<br>
+          电气设备的对地绝缘电阻 R<sub>6</sub>= <span class="underline">`+ins+`</span> MΩ
+        </td>
+        <td class="c">符合</td><td class="c mark">√</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function ap2Rows(from,to){
+  let h=``;
+  AP2.slice(from,to).forEach(x=>{
+    h+=`<tr><td class="c">`+x.n+`</td><td class="c">`+x.code+`</td><td class="l">`+x.c.replace(/\n/g,`<br>`)+`</td><td class="c">`+x.s+`</td><td class="c">不适用</td><td class="c mark">-</td><td class="c">/</td></tr>`;
+  });
+  return h;
+}
+function ap2Head(first){
+  let h=``;
+  if(first){
+    h+=`<table class="rt" style="margin-bottom:-1px"><colgroup><col style="width:14%"><col style="width:36%"><col style="width:14%"><col style="width:36%"></colgroup>`;
+    h+=`<tr><td class="c">附设装置<br>设备名称</td><td class="c">/</td><td class="c">附设装置<br>额定起重量</td><td class="c">/　t</td></tr>`;
+    h+=`<tr><td class="c">附设装置<br>制造单位</td><td class="c">/</td><td class="c">附设装置<br>产品编号</td><td class="c">/</td></tr>`;
+    h+=`</table>`;
+  }
+  h+=`<table class="rt" style="flex-grow:1"><colgroup><col style="width:5%"><col style="width:11%"><col style="width:44%"><col style="width:18%"><col style="width:9%"><col style="width:6%"><col style="width:7%"></colgroup>`;
+  h+=`<thead><tr><th>序号</th><th>检验<br>项目</th><th>检验内容与要求</th><th>检验情况</th><th>检验结果</th><th>结论</th><th>备注</th></tr></thead><tbody>`;
+  return h;
+}
+
+function pgAp2(){
+  let h=`<div class="page page-sm"><div class="formid">Q-002-D</div>`;
+  h+=`<div style="font-size:13px;font-weight:700">附录2</div><div class="pagetitle">附设装置检验记录</div>`;
+  h+=ap2Head(true)+ap2Rows(0,4)+`</tbody></table>`;
+  h+=`</div>`;
+
+  h+=`<div class="page page-sm"><div class="formid">Q-002-D</div>`;
+  h+=`<div class="pagetitle-sm">附设装置检验记录（续）</div>`;
+  h+=ap2Head(false)+ap2Rows(4,9)+`</tbody></table>`;
+  h+=`</div>`;
+
+  h+=`<div class="page page-sm"><div class="formid">Q-002-D</div>`;
+  h+=`<div class="pagetitle-sm">附设装置检验记录（续）</div>`;
+  h+=ap2Head(false)+ap2Rows(9,17)+`</tbody></table>`;
+  h+=`</div>`;
+
+  h+=`<div class="page page-sm"><div class="formid">Q-002-D</div>`;
+  h+=`<div class="pagetitle-sm">附设装置检验记录（续）</div>`;
+  h+=ap2Head(false)+ap2Rows(17,20)+`</tbody></table>`;
+  h+=`<table class="rt" style="margin-top:4mm;flex-grow:0.35"><colgroup><col style="width:19%"><col style="width:81%"></colgroup>`;
+  h+=`<tr><td class="c" style="height:22mm;vertical-align:top">记事栏</td><td class="l" style="vertical-align:top;padding:3px 6px">/</td></tr>`;
+  h+=`<tr><td class="c" style="height:10mm">C3.4附设装置<br>检验情况汇总</td><td class="c" style="font-weight:700">不适用</td></tr>`;
+  h+=`</table></div>`;
+  return h;
+}
+
+function pgAp3(c){
+  let rows=``;
+  BAD.forEach(b=>{
+    rows+=`<tr><td class="c">`+b.no+`</td><td class="c">`+clauseNo(b.clause)+`</td><td class="c">×</td><td class="c">`+(c.d1||``)+`</td><td class="c">现场确认</td><td class="c">符合</td><td class="c mark">√</td><td class="c">`+(c.d2||``)+`</td></tr>`;
+  });
+  for(let i=BAD.length;i<16;i++){
+    rows+=`<tr><td class="c">/</td><td class="c">/</td><td class="c">/</td><td class="c">/</td><td class="c">/</td><td class="c">/</td><td class="c mark">-</td><td class="c">/</td></tr>`;
+  }
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div style="font-size:13px;font-weight:700">附录3</div>
+    <div class="pagetitle">起重机械定期初检不合格项及整改情况记录表</div>
+    <table class="rt">
+      <colgroup><col style="width:7%"><col style="width:15%"><col style="width:9%"><col style="width:14%"><col style="width:14%"><col style="width:11%"><col style="width:10%"><col style="width:20%"></colgroup>
+      <thead><tr><th>序号</th><th>检验项目</th><th>初检<br>结论</th><th>初检日期</th><th>整改确<br>认方式</th><th>整改结果</th><th>整改<br>结论</th><th>整改情况日期</th></tr></thead>
+      <tbody>`+rows+`</tbody>
+    </table>
+  </div>`;
+}
+
+function pgAp4(){
+  return `<div class="page page-sm">
+    <div class="formid">Q-002-D</div>
+    <div style="font-size:13px;font-weight:700">附录4</div>
+    <div class="pagetitle">记事栏</div>
+    <div class="ap-box">/</div>
+  </div>`;
+}
+
+/* ============================================================
+   主渲染
+   ============================================================ */
+const PAGES=[[0,7],[7,5],[12,2],[14,2],[16,4],[20,7],[27,3],[30,5],[35,7],[42,6],[48,5],[53,6],[59,4],[63,2],[65,8],[73,6],[79,6],[85,3],[88,1]];
+
+function render(){
+  const c=cfg();
+  const items=buildItems(c);
+  const rows=flatten(items);
+
+  let html='';
+  html+=pgCover(c);
+  html+=pgNotes();
+  html+=pgParams(c);
+  html+=pgBasis(c);
+
+  PAGES.forEach(p=>{
+    const seg=rows.slice(p[0],p[0]+p[1]);
+    if(seg.length) html+=renderItemPage(seg);
+  });
+
+  html+=pgAp1(c);
+  html+=pgAp2();
+  html+=pgAp3(c);
+  html+=pgAp4();
+
+  document.getElementById('out').innerHTML=html;
+
+  const badCnt=BAD.length;
+  document.getElementById('stat').textContent =
+    '共 '+rows.length+' 行 · 不合格 '+badCnt+' 项 · 检验结论：合格'+(badCnt?'（整改复检）':'');
+}
+
+/* ============================================================
+   项目管理
+   ============================================================ */
+const KEY='crane_report_projects';
+let projects=[], curPid=null, curUid=null;
+
+function loadProjects(){ try{ projects=JSON.parse(localStorage.getItem(KEY))||[] }catch(e){ projects=[] } }
+function saveProjects(){ localStorage.setItem(KEY,JSON.stringify(projects)) }
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('show'); document.getElementById('sbOverlay').classList.toggle('show'); }
+function renderSidebar(){
+  document.getElementById('projList').innerHTML = projects.map(p=>`
+    <div class="proj-item">
+      <div class="proj-name" onclick="toggleProj('${p.id}')">
+        <span>${p.name}</span>
+        <span class="proj-acts">
+          <button onclick="event.stopPropagation();addUnit('${p.id}')">＋</button>
+          <button class="del" onclick="event.stopPropagation();delProj('${p.id}')">✕</button>
+        </span>
+      </div>
+      <div class="unit-list ${p.open?'show':''}">
+        ${(p.units||[]).map(u=>`<div class="unit-item ${u.id===curUid?'active':''}" onclick="loadUnit('${p.id}','${u.id}')">
+          <span>${u.name}</span><span class="del" onclick="event.stopPropagation();delUnit('${p.id}','${u.id}')">✕</span>
+        </div>`).join('')}
+      </div>
+    </div>`).join('') || '<div style="padding:16px;color:#888;font-size:13px">暂无项目，点上方新建</div>';
+  const p=projects.find(x=>x.id===curPid), u=p&&(p.units||[]).find(x=>x.id===curUid);
+  document.getElementById('currLabel').textContent = u ? (p.name+' / '+u.name) : '未选择项目';
+}
+function toggleProj(id){ const p=projects.find(x=>x.id===id); if(p){ p.open=!p.open; saveProjects(); renderSidebar(); } }
+function newProject(){ const n=prompt('项目名称（如：2026年10月 彭州片区）'); if(!n) return; projects.push({id:'p'+Date.now(),name:n,open:true,units:[]}); saveProjects(); renderSidebar(); }
+function delProj(id){ if(!confirm('删除该项目及其全部设备？')) return; projects=projects.filter(x=>x.id!==id); saveProjects(); renderSidebar(); }
+function addUnit(pid){
+  const n=prompt('设备名称（如：1# 电动单梁 10t）'); if(!n) return;
+  const p=projects.find(x=>x.id===pid); p.units=p.units||[];
+  const u={id:'u'+Date.now(),name:n,cfg:cfg(),bad:JSON.parse(JSON.stringify(BAD))};
+  p.units.push(u); p.open=true; saveProjects(); renderSidebar();
+}
+function delUnit(pid,uid){ if(!confirm('删除该设备配置？')) return; const p=projects.find(x=>x.id===pid); p.units=p.units.filter(x=>x.id!==uid); saveProjects(); renderSidebar(); }
+function loadUnit(pid,uid){
+  const p=projects.find(x=>x.id===pid); const u=(p.units||[]).find(x=>x.id===uid);
+  if(!u) return;
+  curPid=pid; curUid=uid;
+  if(u.cfg) setCfg(u.cfg);
+  BAD = JSON.parse(JSON.stringify(u.bad||[]));
+  renderBad(); render(); renderSidebar(); toggleSidebar();
+}
+function setCfg(c){
+  const m={i_unit:'unit',i_addr:'addr',i_place:'place',i_credit:'credit',i_safe:'safe',i_tel:'tel',i_zip:'zip',i_maker:'maker',i_mod:'mod',
+    i_cat:'cat',i_kind:'kind',i_ctype:'ctype',i_ctypeOther:'ctypeOther',i_model:'model',i_devcode:'devcode',i_prod:'prod',i_inner:'inner',i_cap:'cap',i_span:'span',
+    i_speed:'speed',i_h:'h',i_level:'level',i_ex:'ex',i_other:'other',i_env:'env',i_used:'used',i_life:'life',i_next:'next',
+    i_struct:'struct',i_girder:'girder',i_ctrl:'ctrl',i_hook:'hook',i_trolley:'trolley',
+    c_door:'door',c_cabin:'cabin',c_remote:'remote',c_vspeed:'vspeed',c_bridge:'bridge',c_hoist:'hoist',
+    c_clean:'clean',c_coll:'coll',c_rope:'rope',c_mon:'mon',
+    m_clamp:'clamp',m_turn:'turn',m_clip:'clip',m_gap:'gap',m_tn:'tn',m_tt:'tt',m_clean:'cleanGap',m_ins:'ins',m_box:'box',
+    i_d1:'d1',i_d2:'d2',i_sn:'sn',i_rep:'rep',i_fee:'fee',i_reg:'reg',
+    i_ins1:'ins1',i_ins2:'ins2',i_ins3:'ins3',i_ins4:'ins4'};
+  for(const id in m){ const el=document.getElementById(id); if(el && c[m[id]]!==undefined) el.value=c[m[id]]; }
+  var box=document.getElementById('box_ctypeOther');
+  if(box && c.ctype) box.style.display = CTYPE_MAP[c.ctype] ? 'none' : 'block';
+}
+function saveCurrent(){
+  if(!curPid||!curUid){ alert('请先在「项目管理」里选中一台设备'); return; }
+  const p=projects.find(x=>x.id===curPid); const u=(p.units||[]).find(x=>x.id===curUid);
+  u.cfg=cfg(); u.bad=JSON.parse(JSON.stringify(BAD)); saveProjects(); alert('已保存到：'+u.name);
+}
+
+/* 示例 */
+function loadDemoA(){
+  setCfg({unit:'四川省昌轩建筑工程有限责任公司',addr:'彭州市牡丹大道中段38号',place:'彭州市牡丹大道中段38号下料跨（中）',
+    credit:'91510100MA6CL14D8L',safe:'周宇',tel:'13388175789',zip:'/',maker:'成都三江起重机制造有限公司',mod:'/',
+    cat:'桥式起重机',kind:'电动单梁起重机',ctype:'电动单梁',ctypeOther:'',model:'LD10-22.5',devcode:'417051018220010030957',prod:'09109',inner:'2#',
+    cap:'10',span:'22.5',speed:'7',h:'12',level:'A3',ex:'/',other:'/',env:'非露天',used:'/',life:'/',next:'2028年07月01日',
+    struct:'单主梁',girder:'正轨箱形梁',ctrl:'无线遥控装置',hook:'吊钩',trolley:'单小车',
+    door:'无',cabin:'无',remote:'有',vspeed:'无',bridge:'无',hoist:'电动葫芦',clean:'无',coll:'有',rope:'单钢丝绳',
+    clamp:'3',turn:'4',clip:'/',gap:'/',tn:'2',tt:'/',cleanGap:'/',ins:'>550',box:'3-12',
+    d1:'2026-09-24',d2:'2026-10-14',sn:'02977666',rep:'QZDJ202608036',fee:'300.0',reg:'起10川A00390（18）',
+    ins1:'李科, 李冬阳',ins2:'李科',ins3:'',ins4:'李科'});
+  BAD=[{no:'9',clause:'C3.8.1(2)',text:'吊钩防脱钩装置失效，有破损、缺件；其他：起重机吊钩存在变形'}];
+  renderBad(); render();
+}
+function loadDemoB(){
+  setCfg({unit:'四川省昌轩建筑工程有限责任公司',addr:'彭州市牡丹大道中段38号',place:'彭州市牡丹大道中段38号车间',
+    credit:'91510100MA6CL14D8L',safe:'周宇',tel:'13388175789',zip:'/',maker:'四川合能起重设备有限公司',mod:'/',
+    cat:'门式起重机',kind:'电动葫芦门式起重机',ctype:'电动葫芦门式',ctypeOther:'',model:'MH5-11.98m',devcode:'42705101822001400404',prod:'13-05-8080',inner:'2#',
+    cap:'5',span:'11.98',speed:'8',h:'6.7',level:'A3',ex:'/',other:'/',env:'非露天',used:'/',life:'/',next:'2028年07月01日',
+    struct:'单主梁',girder:'正轨箱形梁',ctrl:'无线遥控装置',hook:'吊钩',trolley:'单小车',
+    door:'无',cabin:'无',remote:'有',vspeed:'无',bridge:'无',hoist:'电动葫芦',clean:'有',coll:'有',rope:'双钢丝绳',
+    clamp:'3',turn:'4',clip:'/',gap:'/',tn:'4',tt:'/',cleanGap:'5',ins:'>550',box:'3-12',
+    d1:'2026-09-24',d2:'2026-10-14',sn:'02977672',rep:'QZDJ202608048',fee:'400.0',reg:'起20川A00052（18）',
+    ins1:'李科, 李冬阳',ins2:'李科',ins3:'',ins4:'李科'});
+  BAD=[
+    {no:'19',clause:'C3.11.2(1)',text:'未设置一个单边的、清晰可辨的能够启动起重机上急停功能的急停开关'},
+    {no:'23',clause:'C3.11.5',text:'急停开关动作时，未能切断起重机总动力电源或相应机构的动力电源'},
+    {no:'38',clause:'C3.12.4.15',text:'防碰撞装置未可靠动作，未能使起重机械、起重大车小车之间在发生碰撞前停止相应方向的运行'},
+    {no:'42',clause:'C4.2.2.2',text:'运行行程限制器无效'}
+  ];
+  renderBad(); render();
+}
+
+/* 启动 */
+loadProjects(); renderSidebar(); loadDemoA();
+</script>
+</body>
+</html>
