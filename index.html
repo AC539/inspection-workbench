@@ -91,6 +91,17 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 .task-item .t-title{font-size:14px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .task-item .t-sub{font-size:12px;color:var(--sub);margin-top:1px}
 .task-item .t-sub .sep{color:var(--hint);margin:0 4px}
+/* ===== 重复报检单号标记 ===== */
+.task-item.dup{border-color:#FF6B60;background:#FFF7F6;box-shadow:inset 3px 0 0 #FF3B30}
+.task-item.dup .stripe{background:#FF3B30 !important}
+.dup-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:#FFE9E7;color:#C4271B;border:1px solid #FFB9B2;font-size:10px;font-weight:600;line-height:1.5;vertical-align:middle;white-space:nowrap}
+.cal-task.dup{box-shadow:inset 0 0 0 2px #FF3B30}
+.cal-dup-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#FF3B30;margin-right:3px;vertical-align:middle}
+.dup-hl{color:#C4271B;font-weight:600}
+.dup-note{margin-top:4px;font-size:11px;color:#C4271B}
+.dupalert{display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:#FFF7F6;border:1px solid #FFB9B2;color:#8C2018;font-size:12.5px;line-height:1.6}
+.dupalert b{color:#C4271B}
+.dupalert .x{margin-left:auto;color:#C4271B;cursor:pointer;font-size:15px;line-height:1;flex-shrink:0}
 .chk{width:22px;height:22px;border-radius:7px;border:2px solid var(--line2);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff}
 .chk.on{background:var(--acc);border-color:var(--acc)}
 .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -686,7 +697,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 <script>
 /* ================= 存储层 ================= */
 var P = 'wb_check_';
-var K = {tasks:P+'tasks', types:P+'deviceTypes', cols:P+'statusColors', set:P+'settings', seeded:P+'seeded'};
+var K = {tasks:P+'tasks', types:P+'deviceTypes', cols:P+'statusColors', set:P+'settings', seeded:P+'seeded', tomb:P+'tombstones'};
 var DEFAULT_TYPES = {
   '电梯定期检验':'#007AFF',
   '电梯监督检验':'#5AC8FA',
@@ -705,13 +716,18 @@ var STATUS = {
   pending:'待安排', scheduled:'已排期', done:'检验完成',
   report_received:'报告·收到单子', report_review:'报告·校核中', report_archived:'报告·归档完成'
 };
-var STATE = {tasks:[], types:{}, cols:{}, set:{}, viewDate:null, selDate:null, batch:false, batchSel:{}, editingId:null, smsPreview:null, routePlan:null, deletedIds:[]};
+var STATE = {tasks:[], types:{}, cols:{}, set:{}, viewDate:null, selDate:null, batch:false, batchSel:{}, editingId:null, smsPreview:null, routePlan:null, deletedIds:[], tomb:[]};
 
 function loadAll(){
   STATE.types = JSON.parse(localStorage.getItem(K.types)||'null') || Object.assign({}, DEFAULT_TYPES);
   STATE.cols = JSON.parse(localStorage.getItem(K.cols)||'null') || Object.assign({}, DEFAULT_COLS);
   STATE.set = Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(K.set)||'{}'));
   STATE.tasks = JSON.parse(localStorage.getItem(K.tasks)||'[]');
+  /* 删除墓碑：{id,at} 列表。删除必须留痕，否则一端删掉的任务会被另一端合并回来 */
+  STATE.tomb = normalizeTomb(JSON.parse(localStorage.getItem(K.tomb)||'[]'));
+  STATE.deletedIds = STATE.tomb.map(function(x){ return x.id; });
+  /* 启动时自愈：本地残留的已删任务直接剔掉 */
+  applyTomb();
   // 数据修正：非待安排但没有排期日期的任务，自动归类回待安排
   STATE.tasks.forEach(function(t){
     if(t.status!=='pending'&&!t.date) t.status='pending';
@@ -733,9 +749,103 @@ function saveAll(){
   localStorage.setItem(K.types, JSON.stringify(STATE.types));
   localStorage.setItem(K.cols, JSON.stringify(STATE.cols));
   localStorage.setItem(K.set, JSON.stringify(STATE.set));
+  saveTomb();
   syncPush();
 }
 function uid(){return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);}
+
+/* ================= 删除墓碑（跨端删除同步的基础） ================= */
+var TOMB_KEEP_DAYS = 180;   // 墓碑保留天数：够任何一台设备上线一次
+function normalizeTomb(arr){
+  var out=[], seen={};
+  (Array.isArray(arr)?arr:[]).forEach(function(x){
+    if(!x) return;
+    var id=(typeof x==='string')?x:(x.id||'');
+    if(!id) return;
+    var at=(typeof x==='object'&&x.at)?+x.at:0;
+    if(seen[id]){
+      if(at>seen[id].at) seen[id].at=at;
+      return;
+    }
+    seen[id]={id:id, at:at};
+    out.push(seen[id]);
+  });
+  return out;
+}
+function mergeTombList(a,b){
+  var m={};
+  normalizeTomb(a).concat(normalizeTomb(b)).forEach(function(x){
+    if(!m[x.id]||x.at>m[x.id].at) m[x.id]={id:x.id,at:x.at};
+  });
+  return Object.keys(m).map(function(k){ return m[k]; });
+}
+function pruneTomb(list){
+  var cut=Date.now()-TOMB_KEEP_DAYS*86400000;
+  return normalizeTomb(list).filter(function(x){ return !x.at || x.at>=cut; });
+}
+function tombIndex(list){
+  var m={};
+  normalizeTomb(list).forEach(function(x){ m[x.id]=x.at; });
+  return m;
+}
+function markDeleted(id){
+  if(!id) return;
+  STATE.tomb=STATE.tomb.filter(function(x){ return x.id!==id; });
+  STATE.tomb.push({id:id, at:Date.now()});
+  if(STATE.deletedIds.indexOf(id)<0) STATE.deletedIds.push(id);
+}
+/* 按墓碑剔除本地任务，返回剔除条数 */
+function applyTomb(){
+  var idx=tombIndex(STATE.tomb);
+  var before=STATE.tasks.length;
+  STATE.tasks=STATE.tasks.filter(function(t){ return !(t&&t.id&&idx[t.id]); });
+  return before-STATE.tasks.length;
+}
+function saveTomb(){
+  localStorage.setItem(K.tomb, JSON.stringify(pruneTomb(STATE.tomb)));
+}
+
+/* ================= 报检单号查重 ================= */
+var DUP_CACHE=null;
+/* 归一化：去空格/横杠/下划线，统一大写，避免「CDTJ 2026-071」和「cdtj2026071」被当成两条 */
+function normNo(s){ return String(s==null?'':s).replace(/[\s\-_—－·.．]/g,'').toUpperCase(); }
+function invalidateDup(){ DUP_CACHE=null; }
+function computeDup(){
+  var m={};
+  STATE.tasks.forEach(function(t){
+    var k=normNo(t.reportNo);
+    if(!k) return;
+    (m[k]=m[k]||[]).push(t);
+  });
+  var out={};
+  Object.keys(m).forEach(function(k){ if(m[k].length>1) out[k]=m[k]; });
+  return out;
+}
+function dupMap(){ if(!DUP_CACHE) DUP_CACHE=computeDup(); return DUP_CACHE; }
+function dupList(t){
+  if(!t) return [];
+  var k=normNo(t.reportNo); if(!k) return [];
+  return dupMap()[k]||[];
+}
+function isDup(t){ return dupList(t).length>1; }
+function dupOthers(t){ return dupList(t).filter(function(x){ return x.id!==t.id; }); }
+function dupBadge(t){
+  var n=dupList(t).length;
+  if(n<2) return '';
+  return '<span class="dup-badge">重复单号 ×'+n+'</span>';
+}
+/* 录入时查重：返回同单号的其它任务（不含自己） */
+function findDupByNo(no, excludeId){
+  var k=normNo(no); if(!k) return [];
+  return STATE.tasks.filter(function(t){
+    return t.id!==excludeId && normNo(t.reportNo)===k;
+  });
+}
+function dupTaskDesc(list){
+  return list.slice(0,3).map(function(x){
+    return '「'+taskTitle(x)+'」'+(STATUS[x.status]||'');
+  }).join('、')+(list.length>3?(' 等 '+list.length+' 条'):'');
+}
 
 /* ================= 多人同步（服务器模式） ================= */
 var SYNC = {url:'', version:0, timer:null, pulling:false, lastOk:0};
@@ -812,6 +922,7 @@ function saveAllLocal(){
   localStorage.setItem(K.types, JSON.stringify(STATE.types));
   localStorage.setItem(K.cols, JSON.stringify(STATE.cols));
   localStorage.setItem(K.set, JSON.stringify(STATE.set));
+  saveTomb();
 }
 function syncPoll(){
   var u=syncUrl(); if(!u||SYNC.pulling) return;
@@ -872,14 +983,28 @@ function uploadCloud(){
   STATE.set.ghToken=token; STATE.set.ghRepo=repo;
   localStorage.setItem(K.set, JSON.stringify(STATE.set));
   ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
-  var payload={v:1, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols};
-  var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  var removed=0;
   ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
+    /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
+    var remoteTomb=[];
+    if(existing&&existing.content){
+      try{
+        var raw=existing.content.replace(/\n/g,'');
+        var prev=JSON.parse(decodeURIComponent(escape(atob(raw))));
+        remoteTomb=normalizeTomb(prev&&(prev.deleted||prev.tomb)||[]);
+      }catch(e){}
+    }
+    STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
+    STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
+    removed=applyTomb();   // 云端已删的任务，本机也剔掉
+    if(removed){ saveAllLocal(); renderAll(); }
+    var payload={v:2, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols, deleted:STATE.tomb};
+    var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
     var body={message:'工作台云端同步上传', content:b64, branch:'main'};
     if(existing&&existing.sha) body.sha=existing.sha;
     return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
   }).then(function(){
-    ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务到云端 ✓</span>');
+    ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>');
     toast('已上传到云端');
   }).catch(function(e){
     ghStatus('<span style="color:var(--red)">上传失败：'+esc(e.message||e)+'</span>');
@@ -899,8 +1024,8 @@ function downloadCloud(){
     var d=JSON.parse(s);
     if(!d||!Array.isArray(d.tasks)) throw new Error('云端数据格式异常');
     var r=mergeIncoming(d);
-    ghStatus('<span style="color:var(--green)">下载完成：新增 '+r.add+' 条，更新 '+r.upd+' 条，共 '+STATE.tasks.length+' 条 ✓</span>');
-    toast('已从云端合并数据');
+    ghStatus('<span style="color:var(--green)">下载完成：新增 '+r.add+' 条，更新 '+r.upd+' 条'+(r.del?'，删除 '+r.del+' 条（云端已删）':'')+'，共 '+STATE.tasks.length+' 条 ✓</span>');
+    toast('已从云端合并数据'+(r.del?('，同步删除 '+r.del+' 条'):''));
   }).catch(function(e){
     ghStatus('<span style="color:var(--red)">下载失败：'+esc(e.message||e)+'</span>');
   });
@@ -1170,6 +1295,7 @@ function seedDemo(){
 
 /* ================= 渲染 ================= */
 function renderAll(){
+  invalidateDup();
   document.getElementById('monthLabel').textContent = STATE.viewDate.getFullYear()+'年'+(STATE.viewDate.getMonth()+1)+'月';
   renderAlert();
   renderCalendar();
@@ -1178,13 +1304,27 @@ function renderAll(){
 }
 function renderAlert(){
   var wrap=document.getElementById('alertBoxWrap');
-  if(STATE.tasks.length>=30){
-    wrap.style.display='block';
-    wrap.innerHTML='<div class="alertbar">数据已积累 '+STATE.tasks.length+' 条，建议导出备份，防止浏览器缓存被清理。</div>';
-  }else{
-    wrap.style.display='none';
+  var dm=dupMap();
+  var keys=Object.keys(dm);
+  var html='';
+  if(keys.length&&!STATE.dupDismiss){
+    var names=keys.slice(0,3).map(function(k){
+      var l=dm[k];
+      return esc(String(l[0].reportNo||'').trim())+'（'+l.length+' 条）';
+    }).join('、')+(keys.length>3?(' 等 '+keys.length+' 组'):'');
+    html+='<div class="dupalert">'
+      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4271B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>'
+      +'<div><b>发现 '+keys.length+' 组重复报检单号</b>：'+names
+      +'<div style="margin-top:2px">重复的项目已在下方列表标红，建议核对是否重复录入。</div></div>'
+      +'<span class="x" onclick="dismissDupAlert()">×</span></div>';
   }
+  if(STATE.tasks.length>=30){
+    html+='<div class="alertbar">数据已积累 '+STATE.tasks.length+' 条，建议导出备份，防止浏览器缓存被清理。</div>';
+  }
+  wrap.innerHTML=html;
+  wrap.style.display=html?'block':'none';
 }
+function dismissDupAlert(){ STATE.dupDismiss=true; renderAlert(); }
 function renderCalendar(){
   var grid=document.getElementById('calGrid');
   var y=STATE.viewDate.getFullYear(),mo=STATE.viewDate.getMonth();
@@ -1227,9 +1367,10 @@ function renderCalendar(){
       var maxShow=10;
       list.slice(0,maxShow).forEach(function(t){
         var tag=(t.endDate&&t.endDate!==t.date)?'<span class="ktag">跨</span>':'';
+        var dup=isDup(t)?'<span class="cal-dup-dot"></span>':'';
         var sc=statusColor(t.status);
         var fg=fgOn(sc);
-        tasksHtml+='<div class="cal-task" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openDay(\''+c.date+'\')">'+tag+'<span style="color:'+typeColor(t.deviceType)+';font-weight:500">'+esc(calLabel(t))+'</span></div>';
+        tasksHtml+='<div class="cal-task'+(isDup(t)?' dup':'')+'" style="background:'+sc+';color:'+fg+'" onclick="event.stopPropagation();openDay(\''+c.date+'\')">'+tag+dup+'<span style="color:'+typeColor(t.deviceType)+';font-weight:500">'+esc(calLabel(t))+'</span></div>';
       });
       if(list.length>maxShow) tasksHtml+='<div class="cal-more">+'+(list.length-maxShow)+'</div>';
     }
@@ -1254,10 +1395,11 @@ function renderSide(){
   document.getElementById('pendList').innerHTML=html;
 }
 function taskItemHtml(t){
-  return '<div class="task-item" onclick="openTask(\''+t.id+'\')">'
+  var dup=isDup(t);
+  return '<div class="task-item'+(dup?' dup':'')+'" onclick="openTask(\''+t.id+'\')">'
     +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
     +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
-    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span>'+esc(t.reportNo||'无单号')+'</div></div></div>';
+    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span><span class="'+(dup?'dup-hl':'')+'">'+esc(t.reportNo||'无单号')+'</span>'+dupBadge(t)+'</div></div></div>';
 }
 function renderStats(){
   var g=document.getElementById('statsGrid');
@@ -1284,7 +1426,7 @@ function openDay(dateStr){
       var isMid=t.endDate&&t.endDate>dateStr;
       html+='<div class="day-item" onclick="openTask(\''+t.id+'\')">'
         +'<div class="day-time"><div class="hm">'+(t.time||'--:--')+'</div></div>'
-        +'<div class="day-main"><div class="tt" style="color:'+typeColor(t.deviceType)+'">'+(isMid?'<span class="tag" style="background:var(--accSoft);color:var(--acc)">跨天·'+t.date.slice(5)+'~'+t.endDate.slice(5)+'</span>':'')+esc(taskTitle(t))+'</div>'
+        +'<div class="day-main"><div class="tt" style="color:'+typeColor(t.deviceType)+'">'+(isMid?'<span class="tag" style="background:var(--accSoft);color:var(--acc)">跨天·'+t.date.slice(5)+'~'+t.endDate.slice(5)+'</span>':'')+esc(taskTitle(t))+dupBadge(t)+'</div>'
         +'<div class="ts">'+esc(t.address||'')+'<span class="sep" style="margin:0 4px">·</span>'+STATUS[t.status]+'</div></div>'
         +'<div class="stripe" style="width:4px;align-self:stretch;background:'+statusColor(t.status)+';border-radius:2px"></div>'
         +'</div>';
@@ -1318,8 +1460,11 @@ function navScheme(t){
   return navWebUrl(t);
 }
 function renderTaskDetailHtml(t){
+  var _dupo=dupOthers(t);
   var html='<div class="dtl-grid">'
-    +'<div class="dtl-item"><div class="k">报检单号</div><div class="v">'+esc(t.reportNo||'—')+'</div></div>'
+    +'<div class="dtl-item"><div class="k">报检单号</div><div class="v'+(_dupo.length?' dup-hl':'')+'">'+esc(t.reportNo||'—')
+    +(_dupo.length?'<div class="dup-note">该单号另有 '+_dupo.length+' 条重复：'+esc(_dupo.map(function(x){return taskTitle(x);}).join('、'))+'（请核对是否重复录入）</div>':'')
+    +'</div></div>'
     +'<div class="dtl-item"><div class="k">设备类别</div><div class="v" style="color:'+typeColor(t.deviceType)+'">'+esc(t.deviceType||'—')+'</div></div>'
     +'<div class="dtl-item"><div class="k">报检数量</div><div class="v">'+esc(t.count||'1')+' 台</div></div>'
     +(t.projectName?'<div class="dtl-item"><div class="k">项目名称</div><div class="v">'+esc(t.projectName)+'</div></div>':'')
@@ -1341,14 +1486,13 @@ function renderTaskDetailHtml(t){
   if(t.postponedDates&&t.postponedDates.length){
     html+='<div style="font-size:12px;color:var(--hint);margin-bottom:12px">延期记录：'+t.postponedDates.map(function(p){return esc(p);}).join(' → ')+'</div>';
   }
-  var _isCrane=isCraneTask(t);
-  var _cs=_isCrane?craneCfgStat(t.id):taskCfgStat(t.id), _cn=_cs.total;
-  if(_cn && !_isCrane){
+  var _cs=taskCfgStat(t.id), _cn=_cs.total;
+  if(_cn){
     html+='<button class="btn-report green" style="margin-bottom:8px" onclick="quickReport(\''+t.id+'\')">'
       +'<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11h2"/></svg>'
       +'一键生成检验报告'+(_cn>1?('（'+_cn+' 份配置）'):'')+'</button>';
   }
-  html+='<button class="btn '+(_cn?'sec':'')+'" style="width:100%;margin-bottom:14px" onclick="'+(_isCrane?'openCraneCfgDetail':'openCfgDetail')+'(\''+t.id+'\')">'
+  html+='<button class="btn '+(_cn?'sec':'')+'" style="width:100%;margin-bottom:14px" onclick="openCfgDetail(\''+t.id+'\')">'
     +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
     +'查看配置'+(_cn?('（'+_cn+' 份'+(_cs.miss?(' · '+_cs.miss+' 份待补'):'')+'）'):'')+'</button>';
   html+='<div class="form-actions">'
@@ -1360,13 +1504,12 @@ function renderTaskDetailHtml(t){
   return html;
 }
 function cfgHeadBtns(t){
-  var _ic=isCraneTask(t);
-  var st=_ic?craneCfgStat(t.id):taskCfgStat(t.id), n=st.total, missn=st.miss;
+  var st=taskCfgStat(t.id), n=st.total, missn=st.miss;
   /* 右上角只保留一个入口：查看配置；有未记完的配置时按钮变琥珀色并提示待补份数 */
   var bg = n ? (missn? '#FFF1DC' : 'var(--acc)') : 'var(--card)';
   var fg = n ? (missn? '#9A5B00' : '#fff') : 'var(--acc)';
   var bd = n ? (missn? '#FFD08A' : 'var(--acc)') : 'var(--line2)';
-  return '<button class="btn sm" style="background:'+bg+';color:'+fg+';border:1px solid '+bd+'" onclick="'+(_ic?'openCraneCfgDetail':'openCfgDetail')+'(\''+t.id+'\')">'
+  return '<button class="btn sm" style="background:'+bg+';color:'+fg+';border:1px solid '+bd+'" onclick="openCfgDetail(\''+t.id+'\')">'
     +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="2.6"/></svg>'
     +'查看配置'+(n?' <b style="font-weight:700">'+n+'</b>':'')+(missn?' · '+missn+' 待补':'')+'</button>';
 }
@@ -1411,7 +1554,7 @@ function openTaskForm(idOrDate){
     +'<div class="frow"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><label style="margin:0">时间跨度</label><span style="font-size:12px;color:var(--hint)" id="rangeHint">单日任务</span></div>'
     +'<button type="button" class="btn sec sm" style="width:100%" onclick="toggleRange()" id="rangeBtn">设为跨天任务</button>'
     +'<div id="rangeEndWrap" style="display:none;margin-top:8px"><label>结束日期（跨天时填写）</label><input type="date" id="f_endDate" value=""></div></div>'
-    +'<div class="frow row2"><div><label>报检单号</label><input type="text" id="f_reportNo" value="'+esc(t?t.reportNo:'')+'"></div>'
+    +'<div class="frow row2"><div><label>报检单号</label><input type="text" id="f_reportNo" value="'+esc(t?t.reportNo:'')+'"><div class="hint" id="f_noHint"></div></div>'
     +'<div><label>报检数量（台）</label><input type="number" id="f_count" value="'+(t?t.count||1:1)+'" min="1"></div></div>'
     +'<div class="frow row2"><div><label>项目名称</label><input type="text" id="f_project" value="'+esc(t?t.projectName:'')+'"></div>'
     +'<div><label>维保单位</label><input type="text" id="f_maint" value="'+esc(t?t.maintCo:'')+'"></div></div>'
@@ -1452,6 +1595,20 @@ function typeSelChange(){
   document.getElementById('f_newtypeWrap').style.display = (v==='__new')?'block':'none';
 }
 document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='f_reportNo'){
+    var h=document.getElementById('f_noHint');
+    if(h){
+      var dups=findDupByNo(e.target.value.trim(), STATE.editingId||null);
+      if(dups.length){
+        h.innerHTML='<span style="color:#C4271B;font-weight:600">该单号已录入：'+esc(dupTaskDesc(dups))+'</span>';
+        e.target.style.borderColor='#FF6B60';
+      }else{
+        h.textContent='';
+        e.target.style.borderColor='';
+      }
+    }
+    return;
+  }
   if(e.target&&(e.target.id==='f_address'||e.target.id==='f_area')){
     var ae=document.getElementById('f_area'), ad=document.getElementById('f_address');
     var addr=ad?ad.value.trim():'', area=ae?ae.value.trim():'';
@@ -1492,6 +1649,22 @@ function saveTask(){
   if(d.endDate && d.date && d.endDate<d.date){ toast('结束日期不能早于开始日期'); return; }
   if(!d.area) d.area=guessArea(d.address);
   d.loc=resolveLoc(d.address)||resolveLoc(d.area);
+  /* 报检单号查重：新增时一律查；编辑时只在单号有变动时查 */
+  var oldNo='';
+  if(STATE.editingId){
+    var _cur=STATE.tasks.find(function(x){ return x.id===STATE.editingId; });
+    oldNo=_cur?normNo(_cur.reportNo):'';
+  }
+  var dups=findDupByNo(d.reportNo, STATE.editingId||null);
+  if(dups.length && normNo(d.reportNo)!==oldNo){
+    showConfirm('报检单号已录入过',
+      '单号「'+d.reportNo+'」已存在：'+dupTaskDesc(dups)+'。若是同一批次的不同项目可继续保存，保存后会红色标记为重复单号。',
+      function(){ doSaveTask(d); });
+    return;
+  }
+  doSaveTask(d);
+}
+function doSaveTask(d){
   if(STATE.editingId){
     var t=STATE.tasks.find(function(x){return x.id===STATE.editingId;});
     var cleared=[];
@@ -1588,12 +1761,12 @@ function renderBatchList(){
   if(bc) bc.textContent='匹配 '+list.length+' 个任务';
   if(!list.length) html+='<div class="empty">没有符合条件的任务</div>';
   list.forEach(function(t){
-    var sel=STATE.batchSel[t.id];
-    html+='<div class="task-item" style="margin-bottom:6px" onclick="toggleSel(\''+t.id+'\')">'
+    var sel=STATE.batchSel[t.id], dup=isDup(t);
+    html+='<div class="task-item'+(dup?' dup':'')+'" style="margin-bottom:6px" onclick="toggleSel(\''+t.id+'\')">'
       +'<div class="chk'+(sel?' on':'')+'">'+(sel?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>'
       +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
       +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
-      +'<div class="t-sub">'+(t.date?esc(t.date)+(t.endDate&&t.endDate!==t.date?'~'+esc(t.endDate.slice(5)):''):'<span style="color:var(--hint)">待安排</span>')+'<span class="sep">·</span>'+STATUS[t.status]+'</div></div></div>';
+      +'<div class="t-sub">'+(t.date?esc(t.date)+(t.endDate&&t.endDate!==t.date?'~'+esc(t.endDate.slice(5)):''):'<span style="color:var(--hint)">待安排</span>')+'<span class="sep">·</span>'+STATUS[t.status]+'<span class="sep">·</span><span class="'+(dup?'dup-hl':'')+'">'+esc(t.reportNo||'无单号')+'</span>'+dupBadge(t)+'</div></div></div>';
   });
   document.getElementById('bsList').innerHTML=html;
   var n=Object.keys(STATE.batchSel).length;
@@ -1695,12 +1868,12 @@ function renderRouteBody(){
   updateRouteCount();
 }
 function routeTaskItem(t){
-  var sel=STATE.routeSel[t.id];
-  return '<div class="task-item" style="margin-bottom:6px" onclick="toggleRouteSel(\''+t.id+'\')">'
+  var sel=STATE.routeSel[t.id], dup=isDup(t);
+  return '<div class="task-item'+(dup?' dup':'')+'" style="margin-bottom:6px" onclick="toggleRouteSel(\''+t.id+'\')">'
     +'<div class="chk'+(sel?' on':'')+'">'+(sel?CHECK_SVG:'')+'</div>'
     +'<div class="stripe" style="background:'+statusColor(t.status)+'"></div>'
     +'<div class="t-main"><div class="t-title" style="color:'+typeColor(t.deviceType)+'">'+esc(taskTitle(t))+'</div>'
-    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span>'+esc(t.reportNo||'无单号')+'</div></div></div>';
+    +'<div class="t-sub">'+(t.loc?esc(t.loc.district):'<span style="color:var(--hint)">地址待补充</span>')+'<span class="sep">·</span><span class="'+(dup?'dup-hl':'')+'">'+esc(t.reportNo||'无单号')+'</span>'+dupBadge(t)+'</div></div></div>';
 }
 function toggleRouteSel(id){
   if(STATE.routeSel[id]) delete STATE.routeSel[id];
@@ -2017,6 +2190,17 @@ function confirmSmsImport(){
   if(!t.area) t.area=guessArea(t.address);
   t.loc=resolveLoc(t.address)||resolveLoc(t.area);
   if(t.deviceType&&!STATE.types[t.deviceType]) STATE.types[t.deviceType]=pickColor();
+  /* 报检单号查重：同单号已入库时先提醒 */
+  var dups=findDupByNo(t.reportNo, null);
+  if(dups.length){
+    showConfirm('报检单号已录入过',
+      '单号「'+t.reportNo+'」已存在：'+dupTaskDesc(dups)+'。确认仍要再录一条？',
+      function(){ commitSmsImport(t); });
+    return;
+  }
+  commitSmsImport(t);
+}
+function commitSmsImport(t){
   STATE.tasks.push(t);
   saveAll(); renderAll();
   openSheet('导入成功','<div class="empty" style="padding:30px 0">任务「'+esc(taskTitle(t))+'」已加入待安排'+(t.loc?'，已自动定位到 '+esc(t.loc.district):'，需补充区域/地址以参与顺路编排')+'。</div>'
@@ -2209,11 +2393,21 @@ function decodeData(code){
   return d;
 }
 function mergeIncoming(d){
-  var byId={};
-  STATE.tasks.forEach(function(t){ if(t.id) byId[t.id]=t; });
+  /* 先合并删除墓碑：本地删的、云端删的都要算，删过的不再被合并回来 */
+  var remoteTomb=normalizeTomb((d&&(d.deleted||d.tomb))||[]);
+  STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
+  STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
+  var tidx=tombIndex(STATE.tomb);
+  var byId={}, del=0;
+  STATE.tasks.forEach(function(t){
+    if(!t.id) return;
+    if(tidx[t.id]){ del++; return; }
+    byId[t.id]=t;
+  });
   var add=0,upd=0;
   (d.tasks||[]).forEach(function(t){
     if(!t.id) return;
+    if(tidx[t.id]) return;                                  // 云端数据里的已删任务，不复活
     if(byId[t.id]){ byId[t.id]=mergeTaskObj(byId[t.id],t); upd++; }
     else{ byId[t.id]=t; add++; }
   });
@@ -2221,7 +2415,7 @@ function mergeIncoming(d){
   if(d.types) STATE.types=Object.assign({},DEFAULT_TYPES,d.types);
   if(d.cols) STATE.cols=Object.assign({},DEFAULT_COLS,d.cols);
   saveAll(); renderAll();
-  return {add:add,upd:upd};
+  return {add:add,upd:upd,del:del};
 }
 
 /* ================= 数据管理 ================= */
@@ -2243,6 +2437,8 @@ function importJSON(input){
       var d=JSON.parse(rd.result);
       if(d.tasks&&Array.isArray(d.tasks)){
         STATE.tasks=d.tasks;
+        /* 整包恢复备份时清空墓碑，否则备份里被删过的任务会被墓碑挡住 */
+        STATE.tomb=[]; STATE.deletedIds=[];
         if(d.deviceTypes) STATE.types=Object.assign({},DEFAULT_TYPES,d.deviceTypes);
         if(d.statusColors) STATE.cols=Object.assign({},DEFAULT_COLS,d.statusColors);
         if(d.settings) STATE.set=Object.assign({},DEFAULT_SETTINGS,d.settings);
@@ -2258,22 +2454,22 @@ function importJSON(input){
 }
 function confirmClearAll(){
   showConfirm('清空全部数据？','所有任务、类别与设置将被删除，此操作不可恢复。建议先导出备份！', function(){
-    STATE.tasks.forEach(function(t){ if(t.id) STATE.deletedIds.push(t.id); });
+    STATE.tasks.forEach(function(t){ if(t.id) markDeleted(t.id); });
     STATE.tasks=[]; saveAll(); renderAll();
     toast('已清空全部数据');
   });
 }
 function confirmClearSeed(){
   showConfirm('清空示例数据？','将删除所有任务（含示例与真实数据）。若只想移除示例，请手动删除示例任务。', function(){
-    STATE.tasks.forEach(function(t){ if(t.id) STATE.deletedIds.push(t.id); });
+    STATE.tasks.forEach(function(t){ if(t.id) markDeleted(t.id); });
     STATE.tasks=[]; saveAll(); renderAll();
     toast('已清空数据');
   });
 }
 function confirmDelTask(id){
   var t=STATE.tasks.find(function(x){return x.id===id;}); if(!t) return;
-  showConfirm('删除任务？','「'+taskTitle(t)+'」将被删除，此操作不可恢复。', function(){
-    STATE.deletedIds.push(id);
+  showConfirm('删除任务？','「'+taskTitle(t)+'」将被删除，此操作不可恢复。删除记录会随云端同步，其他设备拉取后会一并清掉。', function(){
+    markDeleted(id);
     STATE.tasks=STATE.tasks.filter(function(x){return x.id!==id;});
     saveAll(); renderAll(); closeSheet();
   refreshTopLayer();
@@ -2320,7 +2516,8 @@ function refreshTopLayer(){
 function showConfirm(title,desc,fn){
   document.getElementById('cfTitle').textContent=title;
   document.getElementById('cfDesc').textContent=desc;
-  cfAction=fn;
+  /* 执行完回调自动关闭弹窗，避免确认后遮罩残留 */
+  cfAction=function(){ try{ if(typeof fn==='function') fn(); } finally { closeConfirm(); } };
   document.getElementById('confirmMask').classList.add('show');
 }
 function cfAction(){}
@@ -4021,270 +4218,6 @@ function quickReport(taskId){
   });
   var l=openSheet('选择配置', h);
   l.__type='cfgPick';
-}
-
-/* ============================================================
- * 起重机配置模块（2026-10-20 新增）
- * - 仅对「起重机」类任务生效，字段 = 起重机报告生成器里的结构配置
- * - 挂在 task.craneCfgs，与电梯 task.cfgs 完全隔离
- * ============================================================ */
-var CRANE_SECTIONS = [
-  { title:'起重机型式', fields:[
-    {k:'craneType', label:'起重机型式', type:'select', hint:'决定适用检验项', options:['电动单梁','通用桥式','电动葫芦门式','通用门式','其他特殊类别']},
-    {k:'craneTypeOther', label:'其他型式说明', type:'text', ph:'手动填写具体型式，如：电动葫芦双梁门式', showIf:'其他特殊类别', optional:true}
-  ]},
-  { title:'结构配置', fields:[
-    {k:'doorLadder',    label:'门、梯子、走台、栏杆', type:'select', options:['无','有'], hint:'有 → 序号7判符合'},
-    {k:'cabin',         label:'司机室',               type:'select', options:['无','有'], hint:'影响序号15、零位保护、联锁保护'},
-    {k:'remote',        label:'无线遥控装置',         type:'select', options:['有','无'], hint:'影响序号19'},
-    {k:'vspeed',        label:'变速功能',             type:'select', options:['无','有'], hint:'有 → 才需超速保护'},
-    {k:'bridgeAccess',  label:'可进入桥架',           type:'select', options:['无','有'], hint:'与司机室任一满足 → 需联锁保护'},
-    {k:'hoistType',     label:'起升机构',             type:'select', options:['电动葫芦','卷扬式'], hint:'电动葫芦 → 序号37三子项全不适用'},
-    {k:'railCleaner',   label:'轨道清扫器',           type:'select', options:['无','有'], hint:'有 → 需测间隙填附录1'},
-    {k:'antiCollision', label:'防碰撞装置',           type:'select', options:['有','无'], hint:'有 → 需实测动作'},
-    {k:'wireRope',      label:'钢丝绳数量',           type:'select', options:['单钢丝绳','双钢丝绳'], hint:'双钢丝绳 → 压板/安全圈填两组'}
-  ]}
-];
-var CRANE_REQUIRED = ['craneType','doorLadder','cabin','remote','vspeed','bridgeAccess','hoistType','railCleaner','antiCollision','wireRope'];
-
-function isCraneTask(t){ return !!t && /起重机/.test(String(t.deviceType||'')); }
-function craneLabel(k){
-  for(var i=0;i<CRANE_SECTIONS.length;i++){
-    for(var j=0;j<CRANE_SECTIONS[i].fields.length;j++){
-      if(CRANE_SECTIONS[i].fields[j].k===k) return CRANE_SECTIONS[i].fields[j].label;
-    }
-  }
-  return k;
-}
-function getCraneCfgs(taskId){
-  var t = STATE.tasks.find(function(x){return x.id===taskId;});
-  if(!t) return [];
-  if(!Array.isArray(t.craneCfgs)) t.craneCfgs = [];
-  return t.craneCfgs;
-}
-function craneCfgMissing(c){
-  var miss = [], f = (c && c.fields) || {};
-  CRANE_REQUIRED.forEach(function(k){
-    if(!String(f[k]==null?'':f[k]).trim()) miss.push(craneLabel(k));
-  });
-  if(f.craneType==='其他特殊类别' && !String(f.craneTypeOther||'').trim()) miss.push('其他型式说明');
-  return miss;
-}
-function craneCfgComplete(c){ return craneCfgMissing(c).length === 0; }
-function craneCfgStat(taskId){
-  var cfgs = getCraneCfgs(taskId), miss = 0;
-  for(var i=0;i<cfgs.length;i++){ if(!craneCfgComplete(cfgs[i])) miss++; }
-  return { total:cfgs.length, miss:miss, done:cfgs.length-miss };
-}
-
-var CRANE_EDIT = { taskId:null, cfgId:null };
-
-function openCraneCfgForm(taskId, cfgId){
-  CRANE_EDIT.taskId = taskId;
-  CRANE_EDIT.cfgId = cfgId || null;
-  var cfgs = getCraneCfgs(taskId);
-  var cur = cfgId ? cfgs.find(function(c){return c.id===cfgId;}) : null;
-
-  var bar = '<div class="cfg-bar">'
-    + '<button class="cfg-chip'+(cur?'':' on')+'" onclick="openCraneCfgForm(\''+taskId+'\',null)">＋ 新增配置</button>';
-  cfgs.forEach(function(c,i){
-    bar += '<button class="cfg-chip n'+(cur&&cur.id===c.id?' on':'')+(craneCfgComplete(c)?'':' miss')+'" onclick="openCraneCfgForm(\''+taskId+'\',\''+c.id+'\')">'
-        + esc(c.name||('配置'+(i+1))) + '</button>';
-  });
-  bar += '</div>';
-
-  var html = bar;
-  html += '<div class="frow"><label>配置名称<span class="hint">一份配置对应一台起重机，同一项目可挂多份</span></label>'
-    + '<input type="text" id="crc_name" value="'+esc(cur?(cur.name||''):'')+'" placeholder="如：1#电动单梁 10t"></div>';
-
-  CRANE_SECTIONS.forEach(function(sec){
-    html += '<div class="cfg-section">'+esc(sec.title)+'</div>';
-    sec.fields.forEach(function(f){
-      var v = cur ? ((cur.fields&&cur.fields[f.k])||'') : '';
-      var inner;
-      if(f.type==='select'){
-        inner = '<select data-cfg="'+f.k+'"><option value="">请选择</option>'
-          + f.options.map(function(o){ return '<option value="'+esc(o)+'"'+(v===o?' selected':'')+'>'+esc(o)+'</option>'; }).join('')
-          + '</select>';
-      }else{
-        inner = '<input type="text" data-cfg="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
-      }
-      html += '<div class="cfg-field" data-field="'+f.k+'"'+(f.showIf?' data-showif="'+esc(f.showIf)+'"':'')+'>'
-        + '<label>'+esc(f.label)+(f.hint?'<span class="hint">'+esc(f.hint)+'</span>':'')+'</label>'
-        + inner + '</div>';
-    });
-  });
-
-  html += '<div class="cfg-save-hint">记一半也能先保存。这些开关直接对应报告里的判定规则。</div>';
-  html += '<div class="cfg-sticky"><div class="form-actions" style="margin:0">'
-    + '<button class="btn" onclick="saveCraneCfgForm()">'+(cur?'保存修改':'保存配置')+'</button>'
-    + (cur?'<button class="btn ghost" onclick="copyCraneCfg(\''+taskId+'\',\''+cur.id+'\')">复制一份</button>':'')
-    + '<button class="btn ghost" onclick="closeSheet()">取消</button>'
-    + '</div></div>';
-
-  var layer = openSheet(cur?('编辑配置 · '+(cur.name||'')):'记录起重机配置', html);
-  layer.__type='craneCfgForm'; layer.__id=taskId;
-  layer.__refresh = function(){
-    layer.querySelector('.sheet-body').innerHTML = html;
-    bindCraneFieldState();
-  };
-  layer.addEventListener('input', bindCraneFieldState);
-  layer.addEventListener('change', bindCraneFieldState);
-  bindCraneFieldState();
-}
-
-function bindCraneFieldState(){
-  var layer = SHEET_STACK[SHEET_STACK.length-1];
-  if(!layer) return;
-  var sel = layer.querySelector('[data-cfg="craneType"]');
-  var tv = sel ? sel.value : '';
-  layer.querySelectorAll('[data-showif]').forEach(function(box){
-    box.style.display = (box.getAttribute('data-showif')===tv) ? '' : 'none';
-  });
-  layer.querySelectorAll('[data-field]').forEach(function(box){
-    var el = box.querySelector('[data-cfg]');
-    if(!el) return;
-    box.classList.toggle('unfilled', !String(el.value||'').trim());
-  });
-}
-
-function readCraneCfgForm(){
-  var layer = SHEET_STACK[SHEET_STACK.length-1];
-  var f = {};
-  layer.querySelectorAll('[data-cfg]').forEach(function(el){ f[el.getAttribute('data-cfg')] = el.value; });
-  var n = document.getElementById('crc_name');
-  return { name:(n?n.value:'').trim(), fields:f };
-}
-
-function saveCraneCfgForm(){
-  var data = readCraneCfgForm();
-  var filled = 0;
-  Object.keys(data.fields).forEach(function(k){ if(String(data.fields[k]==null?'':data.fields[k]).trim()) filled++; });
-  if(!filled && !data.name){ toast('还没填任何内容，先记几项再保存'); return; }
-
-  var cfgs = getCraneCfgs(CRANE_EDIT.taskId);
-  if(!data.name) data.name = defaultCraneName(data);
-  var miss = craneCfgMissing({ fields:data.fields });
-
-  if(CRANE_EDIT.cfgId){
-    var c = cfgs.find(function(x){return x.id===CRANE_EDIT.cfgId;});
-    if(c){ c.name=data.name; c.fields=data.fields; c.updatedAt=Date.now(); }
-    toast(miss.length ? ('已更新 · 还差 '+miss.length+' 项') : '配置已更新');
-  }else{
-    cfgs.push({ id:cfgUid(), name:data.name, fields:data.fields, createdAt:Date.now(), updatedAt:Date.now() });
-    toast(miss.length ? ('已保存 · 还差 '+miss.length+' 项') : '配置已保存');
-  }
-  saveAll();
-  backToCraneCfgDetail(CRANE_EDIT.taskId);
-}
-
-function defaultCraneName(data){
-  var a = data.fields.craneType || '起重机';
-  var o = (data.fields.craneType==='其他特殊类别' ? (data.fields.craneTypeOther||'') : '');
-  return o || a;
-}
-
-function copyCraneCfg(taskId, cfgId){
-  var cfgs = getCraneCfgs(taskId);
-  var c = cfgs.find(function(x){return x.id===cfgId;});
-  if(!c) return;
-  var n = JSON.parse(JSON.stringify(c));
-  n.id = cfgUid(); n.name = (c.name||'配置')+' 副本';
-  n.createdAt = Date.now(); n.updatedAt = Date.now();
-  cfgs.push(n);
-  saveAll();
-  toast('已复制一份');
-  backToCraneCfgDetail(taskId);
-}
-
-function delCraneCfg(taskId, cfgId){
-  var cfgs = getCraneCfgs(taskId);
-  var c = cfgs.find(function(x){return x.id===cfgId;});
-  showConfirm('删除配置','确定删除「'+(c?c.name:'')+'」？此操作不可撤销。', function(){
-    var t = STATE.tasks.find(function(x){return x.id===taskId;});
-    if(t) t.craneCfgs = cfgs.filter(function(x){return x.id!==cfgId;});
-    saveAll();
-    closeConfirm();
-    toast('已删除');
-    backToCraneCfgDetail(taskId);
-  });
-}
-
-function backToCraneCfgDetail(taskId){
-  while(SHEET_STACK.length){
-    var l = SHEET_STACK.pop();
-    l.classList.remove('open');
-    l.remove();
-  }
-  document.body.style.overflow = '';
-  setTimeout(function(){ openCraneCfgDetail(taskId); }, 60);
-}
-
-function openCraneCfgDetail(taskId){
-  var t = STATE.tasks.find(function(x){return x.id===taskId;});
-  if(!t) return;
-  var cfgs = getCraneCfgs(taskId);
-
-  var html = '<div class="cfg-hero">'
-    + '<div class="h1">'
-    + '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M6 21V8m12 13V8M3 8h18M9 8V4h6v4"/></svg>'
-    + esc(t.title||'未命名任务')
-    + '</div>'
-    + '<div class="h2">'+esc([t.deviceType, t.address, t.reportNo].filter(Boolean).join(' · ')||'—')+'</div>'
-    + '<div class="acts">'
-    + '<button class="btn wide" onclick="openCraneCfgForm(\''+taskId+'\',null)">'
-    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>记录新配置</button>'
-    + '<button class="btn alt" onclick="backToTask('+JSON.stringify(taskId).replace(/"/g,'&quot;')+')">返回任务</button>'
-    + '</div></div>';
-
-  if(!cfgs.length){
-    html += '<div class="cfg-empty">'
-      + '<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 21h18M6 21V8m12 13V8M3 8h18M9 8V4h6v4"/></svg>'
-      + '<div style="font-size:14px;color:var(--sub)">该项目还没有记录起重机配置</div>'
-      + '<div style="font-size:12px;margin-top:4px">一份配置对应一台起重机，同一项目可挂多份</div>'
-      + '<button class="btn-report" style="margin-top:16px;width:auto;padding:0 28px" onclick="openCraneCfgForm(\''+taskId+'\',null)">立即记录</button>'
-      + '</div>';
-    var l0 = openSheet('起重机配置', html);
-    l0.__type='craneCfgDetail'; l0.__id=taskId;
-    return;
-  }
-
-  html += '<div style="font-size:12px;color:var(--sub);font-weight:600;margin:2px 0 10px">共 '+cfgs.length+' 份配置</div>';
-  cfgs.forEach(function(c,i){ html += renderCraneCard(taskId, c, i); });
-
-  var layer = openSheet('起重机配置 · '+cfgs.length+' 份', html);
-  layer.__type='craneCfgDetail'; layer.__id=taskId;
-}
-
-function renderCraneCard(taskId, c, i){
-  var f = c.fields||{};
-  var miss = craneCfgMissing(c);
-  var inc = miss.length > 0;
-  var h = '<div class="cfg-card c'+(i%4+1)+(inc?' incomplete':'')+'">'
-    + '<div class="cfg-card-hd">'
-    + '<span class="nm">'+esc(c.name||('配置'+(i+1)))+'</span>'
-    + (inc ? '<span class="cfg-badge">未完整 · 缺 '+miss.length+' 项</span>' : '')
-    + '<button class="del" onclick="delCraneCfg(\''+taskId+'\',\''+c.id+'\')" title="删除">'
-    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'
-    + '</div>';
-  if(inc){
-    h += '<div class="cfg-miss"><b>还没记：</b>'+esc(miss.join('、'))
-      + '<div style="margin-top:3px;opacity:.85">补完这几项会自动变回完整（不影响先保存）</div></div>';
-  }
-  h += '<div class="cfg-grid">';
-  CRANE_SECTIONS.forEach(function(sec){
-    sec.fields.forEach(function(fd){
-      if(fd.showIf && f.craneType!==fd.showIf) return;
-      var v = (f[fd.k]||'').replace(/\n/g,' ');
-      h += '<div class="it"><div class="k">'+esc(fd.label)+'</div><div class="v'+(v?'':' gray')+'" title="'+esc(v)+'">'+(v?esc(v):'未填')+'</div></div>';
-    });
-  });
-  h += '</div>';
-  h += '<div style="display:flex;gap:8px;margin-top:12px">'
-    + '<button class="btn ghost sm" style="flex:1" onclick="openCraneCfgForm(\''+taskId+'\',\''+c.id+'\')">编辑配置</button>'
-    + '</div>';
-  h += '</div>';
-  return h;
 }
 
 /* ================= 数据迁移 ================= */
