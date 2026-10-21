@@ -249,7 +249,7 @@ body{font-family:"SimSun","宋体",serif;background:#e5e5e5;color:#000;line-heig
     <button class="btn btn-warn" onclick="toggleBad()">⚠ 不合格项登记</button>
     <button class="btn" style="background:#64748b;color:#fff" onclick="toggleMore()">⚙ 更多字段</button>
     <button class="btn btn-secondary" onclick="loadDemoA()">📄 载入样本A(单梁)</button>
-    <button class="btn btn-info" onclick="loadDemoB()">📄 载入样本B(门式)</button>
+    <button class="btn btn-info" onclick="loadDemoB()">📄 载入样本B(门式·含4项不合格演示)</button>
     <span class="tip" id="stat"></span>
   </div>
 </div>
@@ -1037,7 +1037,7 @@ function loadDemoA(){
     clamp:'3',turn:'4',clip:'/',gap:'/',tn:'2',tt:'/',cleanGap:'/',ins:'>550',box:'3-12',
     d1:'2026-09-24',d2:'2026-10-14',sn:'02977666',rep:'QZDJ202608036',fee:'300.0',reg:'起10川A00390（18）',
     ins1:'李科, 李冬阳',ins2:'李科',ins3:'',ins4:'李科'});
-  BAD=[{no:'9',clause:'C3.8.1(2)',text:'吊钩防脱钩装置失效，有破损、缺件；其他：起重机吊钩存在变形'}];
+  BAD=[];
   renderBad(); render();
 }
 function loadDemoB(){
