@@ -995,10 +995,7 @@ function uploadCloud(){
     var c=ghCreds();
     var token=c.token, repo=c.repo;
     if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
-    if(!/-data$/i.test(repo)){
-      ghStatus('<span style="color:var(--red)">已拦下：仓库「'+esc(repo)+'」不是私有数据仓库（名字应以 -data 结尾）。<br>公开仓库上传会让单位名称、地址、电话全部对外可见。</span>');
-      toast('仓库名不像私有数据仓库，已拦下上传'); return;
-    }
+    var isDataRepo=/-data$/i.test(repo);
     ghSaveCreds(token,repo);
     ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
     var removed=0;
@@ -1022,7 +1019,8 @@ function uploadCloud(){
       if(existing&&existing.sha) body.sha=existing.sha;
       return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
     }).then(function(){
-      ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>');
+      ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>'
+        +(isDataRepo?'':'<br><span style="color:var(--hint)">提示：当前仓库 '+esc(repo)+' 不是 -data 私有数据仓库</span>'));
       toast('已上传到云端');
     }).catch(function(e){
       ghFail('上传',e);
