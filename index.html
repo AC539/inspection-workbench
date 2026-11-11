@@ -207,7 +207,7 @@ button{cursor:pointer;border:none;background:none;color:inherit}
 @media(max-width:400px){
   .frow .row2{grid-template-columns:1fr}
 }
-.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(29,29,31,.92);color:#fff;font-size:14px;padding:10px 20px;border-radius:999px;z-index:200;opacity:0;pointer-events:none;transition:opacity .25s;max-width:86vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(110px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(29,29,31,.92);color:#fff;font-size:14px;padding:10px 20px;border-radius:999px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s;max-width:86vw;text-align:center}
 .chk-tag{display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border:1px solid var(--line2);border-radius:999px;font-size:13px;color:var(--sub);cursor:pointer;user-select:none;background:var(--card)}
 .chk-tag input{display:none}
 .chk-tag.on{background:var(--accSoft);border-color:var(--acc);color:var(--acc);font-weight:500}
@@ -954,8 +954,16 @@ function syncPush(){
 
 /* ================= GitHub 云端同步（按需上传/下载） ================= */
 function ghStatus(msg,ok){
-  var el=document.getElementById('ghStatus');
-  if(el) el.innerHTML=msg;
+  var el=sheetEl('#ghStatus');
+  if(el){ el.innerHTML=msg; return true; }
+  return false;
+}
+/* 任何异常都要能看见：面板里的状态行没有就退到 toast，再没有就 alert */
+function ghFail(where,err){
+  var m=(err&&(err.message||err))||'未知错误';
+  var shown=ghStatus('<span style="color:var(--red)">'+where+'失败：'+esc(m)+'</span>');
+  if(!shown) alert(where+'失败：'+m);
+  toast(where+'失败：'+m);
 }
 function ghApi(method, path, body){
   var token=(STATE.set&&STATE.set.ghToken||'').trim();
@@ -964,71 +972,126 @@ function ghApi(method, path, body){
   if(body!==undefined){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
   return fetch('https://api.github.com'+path, opts).then(function(r){
     if(r.status===404) return null;
-    if(!r.ok) return r.json().then(function(d){ throw new Error('GitHub '+r.status+(d&&d.message?': '+d.message:'')); });
+    if(!r.ok) return r.json().then(function(d){ throw new Error('GitHub '+r.status+(d&&d.message?': '+d.message:'')); },function(){ throw new Error('GitHub '+r.status); });
     return r.json();
   });
 }
 function ghCreds(){
-  var elT=document.getElementById('setGhToken'), elR=document.getElementById('setGhRepo');
+  var elT=sheetEl('#setGhToken'), elR=sheetEl('#setGhRepo');
   var token=elT?elT.value.trim():'';
   var repo=elR?elR.value.trim():'';
   if(!token) token=(STATE.set&&STATE.set.ghToken||'').trim();
   if(!repo) repo=(STATE.set&&STATE.set.ghRepo||'').trim();
   return {token:token, repo:repo};
 }
-function uploadCloud(){
-  var c=ghCreds();
-  var token=c.token, repo=c.repo;
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
+/* 保存凭证：写本地存储失败不能拖垮整个流程，但必须报出来 */
+function ghSaveCreds(token,repo){
   STATE.set.ghToken=token; STATE.set.ghRepo=repo;
-  localStorage.setItem(K.set, JSON.stringify(STATE.set));
-  ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
-  var removed=0;
-  ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
-    /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
-    var remoteTomb=[];
-    if(existing&&existing.content){
-      try{
-        var raw=existing.content.replace(/\n/g,'');
-        var prev=JSON.parse(decodeURIComponent(escape(atob(raw))));
-        remoteTomb=normalizeTomb(prev&&(prev.deleted||prev.tomb)||[]);
-      }catch(e){}
+  try{ localStorage.setItem(K.set, JSON.stringify(STATE.set)); }
+  catch(e){ ghStatus('<span style="color:var(--red)">本地存储写入失败（'+esc(e.name||'Error')+'），浏览器空间可能已满或被禁用</span>'); }
+}
+function uploadCloud(){
+  try{
+    var c=ghCreds();
+    var token=c.token, repo=c.repo;
+    if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
+    if(!/-data$/i.test(repo)){
+      ghStatus('<span style="color:var(--red)">已拦下：仓库「'+esc(repo)+'」不是私有数据仓库（名字应以 -data 结尾）。<br>公开仓库上传会让单位名称、地址、电话全部对外可见。</span>');
+      toast('仓库名不像私有数据仓库，已拦下上传'); return;
     }
-    STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
-    STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
-    removed=applyTomb();   // 云端已删的任务，本机也剔掉
-    if(removed){ saveAllLocal(); renderAll(); }
-    var payload={v:2, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols, deleted:STATE.tomb};
-    var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    var body={message:'工作台云端同步上传', content:b64, branch:'main'};
-    if(existing&&existing.sha) body.sha=existing.sha;
-    return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
-  }).then(function(){
-    ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>');
-    toast('已上传到云端');
-  }).catch(function(e){
-    ghStatus('<span style="color:var(--red)">上传失败：'+esc(e.message||e)+'</span>');
-  });
+    ghSaveCreds(token,repo);
+    ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
+    var removed=0;
+    ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
+      /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
+      var remoteTomb=[];
+      if(existing&&existing.content){
+        try{
+          var raw=existing.content.replace(/\n/g,'');
+          var prev=JSON.parse(decodeURIComponent(escape(atob(raw))));
+          remoteTomb=normalizeTomb(prev&&(prev.deleted||prev.tomb)||[]);
+        }catch(e){}
+      }
+      STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
+      STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
+      removed=applyTomb();   // 云端已删的任务，本机也剔掉
+      if(removed){ saveAllLocal(); renderAll(); }
+      var payload={v:2, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols, deleted:STATE.tomb};
+      var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+      var body={message:'工作台云端同步上传', content:b64, branch:'main'};
+      if(existing&&existing.sha) body.sha=existing.sha;
+      return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
+    }).then(function(){
+      ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>');
+      toast('已上传到云端');
+    }).catch(function(e){
+      ghFail('上传',e);
+    });
+  }catch(e){ ghFail('上传',e); }
 }
 function downloadCloud(){
+  try{
+    var c=ghCreds();
+    var token=c.token, repo=c.repo;
+    if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
+    ghSaveCreds(token,repo);
+    ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
+    ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(f){
+      if(!f||!f.content){ throw new Error('云端还没有数据，或 Token 没有这个私有仓库的 Contents 权限（'+repo+'）'); }
+      var raw=f.content.replace(/\n/g,'');
+      var s=decodeURIComponent(escape(atob(raw)));
+      var d=JSON.parse(s);
+      if(!d||!Array.isArray(d.tasks)) throw new Error('云端数据格式异常');
+      var r=mergeIncoming(d);
+      ghStatus('<span style="color:var(--green)">下载完成：新增 '+r.add+' 条，更新 '+r.upd+' 条'+(r.del?'，删除 '+r.del+' 条（云端已删）':'')+'，共 '+STATE.tasks.length+' 条 ✓</span>');
+      toast('已从云端合并数据'+(r.del?('，同步删除 '+r.del+' 条'):''));
+    }).catch(function(e){
+      ghFail('下载',e);
+    });
+  }catch(e){ ghFail('下载',e); }
+}
+/* 自检：把「同步为什么不通」一次说清 */
+function ghSelfTest(){
   var c=ghCreds();
-  var token=c.token, repo=c.repo;
-  if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
-  STATE.set.ghToken=token; STATE.set.ghRepo=repo;
-  localStorage.setItem(K.set, JSON.stringify(STATE.set));
-  ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
-  ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(f){
-    if(!f||!f.content){ throw new Error('云端还没有数据（先在一台设备点「上传到云端」）'); }
-    var raw=f.content.replace(/\n/g,'');
-    var s=decodeURIComponent(escape(atob(raw)));
-    var d=JSON.parse(s);
-    if(!d||!Array.isArray(d.tasks)) throw new Error('云端数据格式异常');
-    var r=mergeIncoming(d);
-    ghStatus('<span style="color:var(--green)">下载完成：新增 '+r.add+' 条，更新 '+r.upd+' 条'+(r.del?'，删除 '+r.del+' 条（云端已删）':'')+'，共 '+STATE.tasks.length+' 条 ✓</span>');
-    toast('已从云端合并数据'+(r.del?('，同步删除 '+r.del+' 条'):''));
+  var lines=[];
+  var put=function(s){ lines.push(s); ghStatus(lines.join('<br>')); };
+  put('<span style="color:var(--sub)">自检中…</span>');
+  var used=0;
+  try{ Object.keys(localStorage).forEach(function(k){ used+=(localStorage.getItem(k)||'').length+k.length; }); }catch(e){}
+  var m1='仓库：'+(c.repo||'(空)')+'　Token：'+(c.token?('已填 '+c.token.length+' 位'):'(空)');
+  var m2='本地数据：'+STATE.tasks.length+' 条，占用约 '+(used/1024/1024).toFixed(2)+' MB / 5 MB';
+  // 本地存储是否可写
+  var writable=true;
+  try{ localStorage.setItem('__wbtest','1'); localStorage.removeItem('__wbtest'); }catch(e){ writable=false; }
+  m2+='，'+(writable?'<span style="color:var(--green)">可写</span>':'<span style="color:var(--red)">不可写（被浏览器禁用/已满）</span>');
+  put(esc(m1)); put(m2);
+  if(!c.token){ put('<span style="color:var(--red)">→ 没有 Token，先填 Token 再自检</span>'); return; }
+  var H={headers:{'Authorization':'Bearer '+c.token,'Accept':'application/vnd.github+json'}};
+  fetch('https://api.github.com/user',H).then(function(r){
+    put('① Token 有效性：'+ghCodeText(r.status));
+    if(r.status!==200) return null;
+    return fetch('https://api.github.com/repos/'+c.repo,H);
+  }).then(function(r){
+    if(!r) return null;
+    put('② 仓库可访问：'+ghCodeText(r.status));
+    if(r.status!==200) return null;
+    return fetch('https://api.github.com/repos/'+c.repo+'/contents/data.json',H);
+  }).then(function(r){
+    if(!r) return;
+    put('③ data.json 读取：'+ghCodeText(r.status));
+    put(r.status===200
+      ? '<span style="color:var(--green)">→ 三项都通，可以正常上传/下载</span>'
+      : '<span style="color:var(--orange)">→ 仓库里还没有 data.json，点「上传到云端」即可创建</span>');
   }).catch(function(e){
-    ghStatus('<span style="color:var(--red)">下载失败：'+esc(e.message||e)+'</span>');
+    put('<span style="color:var(--red)">④ 网络请求抛出异常：'+esc(e.message||e)+'<br>→ 多半是 api.github.com 被拦（手机流量/代理/公司网），换 WiFi 或开代理再试</span>');
   });
+}
+function ghCodeText(code){
+  if(code===200) return '<span style="color:var(--green)">200 正常</span>';
+  if(code===401) return '<span style="color:var(--red)">401 Token 无效或已过期 → 重新生成一个填进来</span>';
+  if(code===403) return '<span style="color:var(--red)">403 被拒（权限不足或触发频率限制）</span>';
+  if(code===404) return '<span style="color:var(--red)">404 找不到 → 仓库名写错，或 Token 没勾选这个私有仓库</span>';
+  return '<span style="color:var(--red)">'+code+' 异常</span>';
 }
 
 /* ================= 工具 ================= */
@@ -2210,6 +2273,7 @@ function commitSmsImport(t){
 
 /* ================= 设置 ================= */
 function openSettings(){
+  closeAllSheetsNow();
   var html='';
   html+='<div class="set-group"><h4>设备类别 · 字体颜色</h4>';
   Object.keys(STATE.types).forEach(function(k){
@@ -2255,7 +2319,8 @@ function openSettings(){
     +'<div class="hint">数据存在该仓库的 data.json 文件。公开仓库时数据公开可访问（含公司/地址/电话等，请注意）；如需私密可新建私有仓库填到这里。</div></div>'
     +'<div class="form-actions"><button class="btn" style="flex:1" onclick="uploadCloud()">上传到云端</button>'
     +'<button class="btn ghost" style="flex:1" onclick="downloadCloud()">从云端下载合并</button></div>'
-    +'<div id="ghStatus" style="font-size:12px;color:var(--sub);margin-top:8px"></div>'
+    +'<div class="form-actions" style="margin-top:8px"><button class="btn ghost" style="flex:1" onclick="ghSelfTest()">连通性自检</button></div>'
+    +'<div id="ghStatus" style="font-size:12px;color:var(--sub);margin-top:8px;line-height:1.7"></div>'
     +'</div>';
   html+='<div class="set-group"><h4>多人实时同步</h4>'
     +'<div class="frow"><label>同步服务器地址</label>'
@@ -2508,6 +2573,24 @@ function closeSheet(){
     layer.remove();
     if(!SHEET_STACK.length) document.body.style.overflow='';
   },240);
+}
+/* 立即清空所有面板（无动画）。用途：设置面板内「添加/删除类别」会再调 openSettings()，
+   若不清空会叠出第二层，导致 #ghStatus / #setGhToken 等 id 重复，
+   getElementById 只会命中最底层那个隐藏元素，提示就写到看不见的地方了。 */
+function closeAllSheetsNow(){
+  while(SHEET_STACK.length){
+    var l=SHEET_STACK.pop();
+    if(l&&l.parentNode) l.parentNode.removeChild(l);
+  }
+  document.body.style.overflow='';
+}
+/* 取「最上层面板里」的元素，避免重复 id 时命中隐藏层 */
+function sheetEl(sel){
+  for(var i=SHEET_STACK.length-1;i>=0;i--){
+    var el=SHEET_STACK[i].querySelector(sel);
+    if(el) return el;
+  }
+  return document.querySelector(sel);
 }
 function refreshTopLayer(){
   var top=SHEET_STACK[SHEET_STACK.length-1];
