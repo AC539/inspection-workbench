@@ -968,7 +968,10 @@ function ghFail(where,err){
 function ghApi(method, path, body){
   var token=(STATE.set&&STATE.set.ghToken||'').trim();
   if(!token) return Promise.reject(new Error('请先填写 GitHub Token'));
-  var opts={method:method, headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}};
+  /* GitHub API 的 GET 响应会被浏览器缓存约 60 秒，缓存里带的是旧 sha，
+     拿旧 sha 去 PUT 必然 409（does not match）。GET 一律不读缓存，并加时间戳穿透 */
+  if(method==='GET') path+=(path.indexOf('?')<0?'?':'&')+'t='+Date.now();
+  var opts={method:method, cache:'no-store', headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}};
   if(body!==undefined){ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
   return fetch('https://api.github.com'+path, opts).then(function(r){
     if(r.status===404) return null;
@@ -996,29 +999,51 @@ function uploadCloud(){
     var token=c.token, repo=c.repo;
     if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
     var isDataRepo=/-data$/i.test(repo);
+    /* 公开仓库硬拦截：inspection-workbench 是 Pages 站点仓库，任何人可访问，
+       往里写 data.json 等于把真实单位名/联系人/电话公开，所以直接拒绝 */
+    if(/^AC539\/inspection-workbench$/i.test(repo)){
+      var leak='当前仓库「'+repo+'」是公开的站点仓库，往里写会把真实台账公开。请改成私有数据仓库 AC539/inspection-workbench-data';
+      ghStatus('<span style="color:var(--red)">'+esc(leak)+'</span>'); toast(leak); return;
+    }
     ghSaveCreds(token,repo);
     ghStatus('<span style="color:var(--sub)">正在上传到云端…</span>');
-    var removed=0;
-    ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
-      /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
-      var remoteTomb=[];
-      if(existing&&existing.content){
-        try{
-          var raw=existing.content.replace(/\n/g,'');
-          var prev=JSON.parse(decodeURIComponent(escape(atob(raw))));
-          remoteTomb=normalizeTomb(prev&&(prev.deleted||prev.tomb)||[]);
-        }catch(e){}
-      }
-      STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
-      STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
-      removed=applyTomb();   // 云端已删的任务，本机也剔掉
-      if(removed){ saveAllLocal(); renderAll(); }
-      var payload={v:2, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols, deleted:STATE.tomb};
-      var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-      var body={message:'工作台云端同步上传', content:b64, branch:'main'};
-      if(existing&&existing.sha) body.sha=existing.sha;
-      return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
-    }).then(function(){
+    var removed=0, attempt=0, MAXTRY=3;
+    /* 409 = 送上去的 sha 和云端当前 sha 对不上（另一台设备刚传过 / 缓存了旧 sha）。
+       做法：重新读一次云端 sha 再传，最多重试 MAXTRY 次 */
+    function putOnce(){
+      attempt++;
+      return ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
+        /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
+        var remoteTomb=[];
+        if(existing&&existing.content){
+          try{
+            var raw=existing.content.replace(/\n/g,'');
+            var prev=JSON.parse(decodeURIComponent(escape(atob(raw))));
+            remoteTomb=normalizeTomb(prev&&(prev.deleted||prev.tomb)||[]);
+          }catch(e){}
+        }
+        STATE.tomb=pruneTomb(mergeTombList(STATE.tomb, remoteTomb));
+        STATE.deletedIds=STATE.tomb.map(function(x){ return x.id; });
+        removed=applyTomb();   // 云端已删的任务，本机也剔掉
+        if(removed){ saveAllLocal(); renderAll(); }
+        var payload={v:2, updatedAt:Date.now(), tasks:STATE.tasks, types:STATE.types, cols:STATE.cols, deleted:STATE.tomb};
+        var b64=btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+        var body={message:'工作台云端同步上传', content:b64, branch:'main'};
+        if(existing&&existing.sha) body.sha=existing.sha;
+        return ghApi('PUT','/repos/'+repo+'/contents/data.json', body);
+      }).catch(function(e){
+        var msg=(e&&(e.message||e))||'';
+        if(/409/.test(msg) && attempt<MAXTRY){
+          ghStatus('<span style="color:var(--sub)">云端刚被别处改过（校验码过期），正在重试 '+attempt+'/'+MAXTRY+'…</span>');
+          return new Promise(function(res){ setTimeout(res,600*attempt); }).then(putOnce);
+        }
+        if(/409/.test(msg)){
+          throw new Error('云端校验码冲突（409），已自动重试 '+MAXTRY+' 次仍未成。通常是另一台设备/另一个标签页刚上传过。请先点「从云端下载合并」，确认数据后再上传一次。');
+        }
+        throw e;
+      });
+    }
+    putOnce().then(function(){
       ghStatus('<span style="color:var(--green)">已上传 '+STATE.tasks.length+' 条任务'+(removed?('（已剔除 '+removed+' 条云端已删任务）'):'')+' ✓</span>'
         +(isDataRepo?'':'<br><span style="color:var(--hint)">提示：当前仓库 '+esc(repo)+' 不是 -data 私有数据仓库</span>'));
       toast('已上传到云端');
