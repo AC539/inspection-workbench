@@ -1012,7 +1012,9 @@ function uploadCloud(){
        做法：重新读一次云端 sha 再传，最多重试 MAXTRY 次 */
     function putOnce(){
       attempt++;
-      return ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(existing){
+      /* 显式带 ref=main：不加 ref 时 GitHub 读的是仓库默认分支，
+         万一默认分支不是 main，读到的 sha 和写 main 用的 sha 永远对不上，就会一直 409 */
+      return ghApi('GET','/repos/'+repo+'/contents/data.json?ref=main').then(function(existing){
         /* 关键：云端已有的删除记录必须一起合并，否则「这台设备上传」会把别处删过的任务又写回去 */
         var remoteTomb=[];
         if(existing&&existing.content){
@@ -1059,7 +1061,7 @@ function downloadCloud(){
     if(!token||!repo){ ghStatus('<span style="color:var(--red)">请先在设置里填写 Token 和仓库名</span>'); toast('请先在设置里配置 GitHub 同步'); return; }
     ghSaveCreds(token,repo);
     ghStatus('<span style="color:var(--sub)">正在从云端下载…</span>');
-    ghApi('GET','/repos/'+repo+'/contents/data.json').then(function(f){
+    ghApi('GET','/repos/'+repo+'/contents/data.json?ref=main').then(function(f){
       if(!f||!f.content){ throw new Error('云端还没有数据，或 Token 没有这个私有仓库的 Contents 权限（'+repo+'）'); }
       var raw=f.content.replace(/\n/g,'');
       var s=decodeURIComponent(escape(atob(raw)));
@@ -1089,7 +1091,7 @@ function ghSelfTest(){
   m2+='，'+(writable?'<span style="color:var(--green)">可写</span>':'<span style="color:var(--red)">不可写（被浏览器禁用/已满）</span>');
   put(esc(m1)); put(m2);
   if(!c.token){ put('<span style="color:var(--red)">→ 没有 Token，先填 Token 再自检</span>'); return; }
-  var H={headers:{'Authorization':'Bearer '+c.token,'Accept':'application/vnd.github+json'}};
+  var H={headers:{'Authorization':'Bearer '+c.token,'Accept':'application/vnd.github+json'},cache:'no-store'};
   fetch('https://api.github.com/user',H).then(function(r){
     put('① Token 有效性：'+ghCodeText(r.status));
     if(r.status!==200) return null;
@@ -1098,7 +1100,7 @@ function ghSelfTest(){
     if(!r) return null;
     put('② 仓库可访问：'+ghCodeText(r.status));
     if(r.status!==200) return null;
-    return fetch('https://api.github.com/repos/'+c.repo+'/contents/data.json',H);
+    return fetch('https://api.github.com/repos/'+c.repo+'/contents/data.json?ref=main&t='+Date.now(),H);
   }).then(function(r){
     if(!r) return;
     put('③ data.json 读取：'+ghCodeText(r.status));
